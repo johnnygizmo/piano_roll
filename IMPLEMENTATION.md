@@ -35,6 +35,8 @@ test/
   midi_codec_test.dart         Reader/writer/converter/round-trip
   editor_test.dart             History, timing maths, widget interaction tests
   chords_test.dart             Chord intervals, pie geometry, pie-menu widget flows
+tool/
+  deploy_web.ps1 / .cmd        Build + publish to the web_deploy branch (GitHub Pages)
 ```
 
 Dependencies are one-directional: `ui -> state -> model -> midi`. `model` and `midi` are pure Dart (no Flutter), so they are unit-testable on the VM.
@@ -113,6 +115,20 @@ Open uses a transient `<input type=file>` and reads bytes via `Blob.arrayBuffer`
 
 ### Keyboard focus
 A single top-level `editorFocusNode` receives shortcuts. Pointer-downs in the editor and submitting a text-field in the song drawer return focus to it so shortcuts keep working after using a text field. Right-click opens the generate pie menu, so `BrowserContextMenu.disableContextMenu()` is called at startup.
+
+## Publishing (GitHub Pages)
+
+`tool/deploy_web.ps1` (wrapper: `tool/deploy_web.cmd`) builds and publishes the web app; usage is in the README. Design choices (confirmed with the user: commit on top of the existing `web_deploy`, no push unless `-Push`, two tag kinds):
+
+- **Base href `/piano_roll/`**: the project site lives under the repository name. `web/index.html` keeps Flutter's `$FLUTTER_BASE_HREF` placeholder and the script passes `--base-href`; after the build it verifies `<base href="/piano_roll/">` is really in `index.html`, and warns if the value differs from the GitHub repository name.
+- **Build folder, then branch**: output goes to `build/pages` (git-ignored), then is copied into the deploy branch. The deploy branch contains *only* the build output (+ `.nojekyll`, so Pages does not run Jekyll, and `.gitattributes` with `* -text`).
+- **Worktree instead of branch switching**: the deploy branch is checked out in a temporary `git worktree` (`build/.deploy_worktree`, always removed in a `finally`). The user's working tree, index and checked-out branch are never disturbed by the commit step, and no stash/checkout dance can lose work. The only automatic switch is *to the source branch* when the script is started from the deploy branch (a branch cannot be checked out in two worktrees); that switch is refused if there are uncommitted changes.
+- **No force-push, history kept**: the first deploy added a commit on top of `web_deploy` (which initially held the source tree) that replaces its whole tree with the build. Later deploys do the same. A local deploy branch that is behind the remote is fast-forwarded; if it has diverged the script stops. If the branch does not exist anywhere it is created as an orphan.
+- **Byte-exact output**: commits are made with `core.autocrlf=false` and the branch carries `* -text`. Without this, Windows `autocrlf` rewrote CRLF to LF in four build files (e.g. `flutter_service_worker.js`), so the deployed bytes differed from the build.
+- **Tagging**: annotated tags `v<version>` on the source commit (version = `pubspec.yaml` `version:` including the build number, e.g. `v1.0.0+1`) and `deploy-<version>-<UTC yyyyMMdd-HHmmss>` on the deploy commit. The source tag is only created from a clean tree (so it always matches what was built) and the script fails early if `v<version>` already exists on a *different* commit, which forces a version bump per release. Tags are created after the deploy commit succeeds, so a failed build leaves none behind. With `-Push`, all `v*` and `deploy-*` tags are pushed, which also publishes tags from earlier local-only runs.
+- **Safety checks before building**: clean working tree (`-AllowDirty` overrides and skips the source tag), `flutter analyze` and `flutter test` must pass (`-SkipChecks` skips), warns if the source branch is behind its remote or has unpushed commits.
+- Rebuilding identical source can still produce a different build (service-worker/version metadata), so re-running creates another deploy commit; it only skips committing when the output is byte-identical.
+- The script was tested end to end against a throw-away clone with a bare local remote (switch from `web_deploy`, deploy, re-deploy, version-tag guard, push of branch and tags, byte-for-byte comparison of the committed files with the build).
 
 ## Scope decisions / known limitations (v1)
 

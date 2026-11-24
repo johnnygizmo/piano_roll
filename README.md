@@ -25,3 +25,17 @@ flutter test                 # unit + widget tests
 - Click the ruler to place the playhead; Space plays/pauses.
 
 The `?` button in the toolbar lists every shortcut. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for design decisions and [PLAN.md](PLAN.md) for the roadmap.
+
+## Publishing to GitHub Pages
+
+The site is served from `https://<user>.github.io/piano_roll/`, so it is built with `--base-href /piano_roll/`. One script does everything:
+
+```
+tool\deploy_web.cmd            # build, commit to web_deploy and tag, all locally
+tool\deploy_web.cmd -Push      # ...and push the branch and tags to origin
+```
+(`powershell -File tool\deploy_web.ps1 [...]` is equivalent; see the script header for all options: `-SkipChecks`, `-AllowDirty`, `-SourceBranch`, `-DeployBranch`, `-BaseHref`, `-Remote`, `-OutputDir`.)
+
+What it does, in order: switches to the source branch (`main`) if you ran it from `web_deploy` (refuses if you have uncommitted changes), requires a clean tree, runs `flutter pub get`, `flutter analyze`, `flutter test`, builds into `build/pages`, then replaces the contents of `web_deploy` with that build in a temporary git worktree (your checkout is never touched) and commits it. It tags the source commit `v<version>` (version from `pubspec.yaml`, e.g. `v1.0.0+1`) and the deploy commit `deploy-<version>-<UTC timestamp>`. **Bump `version:` in `pubspec.yaml` before each release** – the script refuses to reuse a `v<version>` tag that points at a different commit.
+
+One-time GitHub setup: repository **Settings → Pages → Source: Deploy from a branch → `web_deploy`, folder `/ (root)`**.
