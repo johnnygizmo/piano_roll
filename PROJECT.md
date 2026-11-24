@@ -1,0 +1,1 @@
+Create a flutter web app that is a MIDI piano roll editor that can read and write MIDI files.
