@@ -59,31 +59,47 @@ function Write-Warn([string]$Message) { Write-Host "WARNING: $Message" -Foregrou
 
 # All helpers take the argument list as ONE array so that dashed arguments
 # such as `-C` are never interpreted as PowerShell parameters.
+#
+# Windows PowerShell 5.1 (what tool\deploy_web.cmd starts) turns ANY text a
+# native command writes to stderr into an error record, and with
+# $ErrorActionPreference = 'Stop' that aborts the script. git writes normal
+# progress ("From https://...", "Preparing worktree...") to stderr, so every
+# native call below runs with 'Continue' and judges success by exit code only.
 
-# Runs git; throws on a non-zero exit code.
+# Runs git without throwing; returns Code (exit code) and Out (stdout+stderr text).
+function Invoke-GitRaw([string[]]$GitArgs) {
+  $ErrorActionPreference = 'Continue'
+  $lines = & git @GitArgs 2>&1
+  $code = $LASTEXITCODE
+  $text = (@($lines | ForEach-Object { "$_" }) -join "`n").Trim()
+  return [pscustomobject]@{ Code = $code; Out = $text }
+}
+
+# Runs git, echoes its output; throws on a non-zero exit code.
 function Invoke-Git([string[]]$GitArgs) {
-  & git @GitArgs
-  if ($LASTEXITCODE -ne 0) { throw "'git $($GitArgs -join ' ')' failed with exit code $LASTEXITCODE." }
+  $r = Invoke-GitRaw $GitArgs
+  if ($r.Out) { Write-Host $r.Out }
+  if ($r.Code -ne 0) { throw "'git $($GitArgs -join ' ')' failed with exit code $($r.Code)." }
 }
 
-# Runs git and returns its trimmed stdout; throws on failure.
+# Runs git and returns its trimmed output; throws on failure.
 function Get-Git([string[]]$GitArgs) {
-  $out = & git @GitArgs
-  if ($LASTEXITCODE -ne 0) { throw "'git $($GitArgs -join ' ')' failed with exit code $LASTEXITCODE." }
-  if ($null -eq $out) { return '' }
-  return (($out | Out-String).Trim())
+  $r = Invoke-GitRaw $GitArgs
+  if ($r.Code -ne 0) { throw "'git $($GitArgs -join ' ')' failed with exit code $($r.Code): $($r.Out)" }
+  return $r.Out
 }
 
-# Runs git and returns $true when it succeeds (all output discarded).
+# Runs git and returns $true when it succeeds (output discarded).
 function Test-Git([string[]]$GitArgs) {
-  & git @GitArgs *> $null
-  return ($LASTEXITCODE -eq 0)
+  return ((Invoke-GitRaw $GitArgs).Code -eq 0)
 }
 
-# Runs any other native command (flutter); throws on a non-zero exit code.
+# Runs any other native command (flutter) with live output; throws on a non-zero exit code.
 function Invoke-Native([string]$Command, [string[]]$CommandArgs) {
+  $ErrorActionPreference = 'Continue'
   & $Command @CommandArgs
-  if ($LASTEXITCODE -ne 0) { throw "'$Command $($CommandArgs -join ' ')' failed with exit code $LASTEXITCODE." }
+  $code = $LASTEXITCODE
+  if ($code -ne 0) { throw "'$Command $($CommandArgs -join ' ')' failed with exit code $code." }
 }
 
 if ($BaseHref -notmatch '^/.*/$') {
@@ -100,8 +116,8 @@ if (-not (Test-Git 'rev-parse', '--is-inside-work-tree')) { throw "$repoRoot is 
 
 # --- Source branch -----------------------------------------------------------
 $current = ''
-$symbolic = & git symbolic-ref --short -q HEAD 2>$null
-if ($LASTEXITCODE -eq 0 -and $symbolic) { $current = ($symbolic | Out-String).Trim() }
+$head = Invoke-GitRaw 'symbolic-ref', '--short', '-q', 'HEAD'
+if ($head.Code -eq 0) { $current = $head.Out }
 
 if (-not $SourceBranch) {
   if ($current -and $current -ne $DeployBranch) { $SourceBranch = $current } else { $SourceBranch = 'main' }
@@ -145,9 +161,9 @@ $deployTag = "deploy-$version-$stamp"
 
 $sourceTagExists = $false
 if ($tagSource) {
-  $existing = & git rev-parse -q --verify "refs/tags/$sourceTag^{commit}" 2>$null
-  if ($LASTEXITCODE -eq 0 -and $existing) {
-    $existing = ($existing | Out-String).Trim()
+  $tagCheck = Invoke-GitRaw 'rev-parse', '-q', '--verify', "refs/tags/$sourceTag^{commit}"
+  if ($tagCheck.Code -eq 0 -and $tagCheck.Out) {
+    $existing = $tagCheck.Out
     if ($existing -ne $srcSha) {
       throw "Tag $sourceTag already exists on a different commit ($($existing.Substring(0, 7))). Bump 'version:' in pubspec.yaml."
     }
@@ -155,7 +171,7 @@ if ($tagSource) {
   }
 }
 
-$haveRemote = ((& git remote) -contains $Remote)
+$haveRemote = (((Get-Git 'remote') -split "\r?\n") -contains $Remote)
 if ($haveRemote -and (Test-Git 'show-ref', '--verify', '--quiet', "refs/remotes/$Remote/$SourceBranch")) {
   $behind = [int](Get-Git 'rev-list', '--count', "HEAD..$Remote/$SourceBranch")
   if ($behind -gt 0) { Write-Warn "'$SourceBranch' is $behind commit(s) behind $Remote/$SourceBranch." }
@@ -190,10 +206,10 @@ if (-not (Select-String -Path $indexPath -SimpleMatch -Pattern "<base href=`"$Ba
 $worktree = Join-Path $repoRoot 'build/.deploy_worktree'
 function Remove-DeployWorktree {
   if (Test-Path $worktree) {
-    & git worktree remove --force $worktree *> $null
+    [void](Invoke-GitRaw 'worktree', 'remove', '--force', $worktree)
     if (Test-Path $worktree) { Remove-Item -Recurse -Force $worktree }
   }
-  & git worktree prune *> $null
+  [void](Invoke-GitRaw 'worktree', 'prune')
 }
 
 $deployed = $false
@@ -203,8 +219,9 @@ try {
 
   if ($haveRemote) {
     Write-Step "Fetching $Remote/$DeployBranch"
-    & git fetch $Remote $DeployBranch *> $null
-    if ($LASTEXITCODE -ne 0) { Write-Warn "Could not fetch $Remote/$DeployBranch (first publish, or offline?)." }
+    if (-not (Test-Git 'fetch', $Remote, $DeployBranch)) {
+      Write-Warn "Could not fetch $Remote/$DeployBranch (first publish, or offline?)."
+    }
   }
   $localExists = Test-Git 'show-ref', '--verify', '--quiet', "refs/heads/$DeployBranch"
   $remoteExists = Test-Git 'show-ref', '--verify', '--quiet', "refs/remotes/$Remote/$DeployBranch"
@@ -226,7 +243,7 @@ try {
     Write-Warn "Branch '$DeployBranch' does not exist yet; creating it as an orphan branch."
     Invoke-Git 'worktree', 'add', '--detach', $worktree
     Invoke-Git '-C', $worktree, 'checkout', '--orphan', $DeployBranch
-    & git -C $worktree rm -rf --quiet . *> $null
+    [void](Invoke-GitRaw '-C', $worktree, 'rm', '-rf', '--quiet', '.')
   }
 
   Write-Step 'Replacing branch contents with the build output'
