@@ -38,13 +38,20 @@ class PieLayout {
   static Offset clampCenter(Offset center, Size screen) {
     const margin = largeOuter + 8;
     return Offset(
-      center.dx.clamp(math.min(margin, screen.width / 2), math.max(screen.width - margin, screen.width / 2)),
-      center.dy.clamp(math.min(margin, screen.height / 2), math.max(screen.height - margin, screen.height / 2)),
+      center.dx.clamp(
+        math.min(margin, screen.width / 2),
+        math.max(screen.width - margin, screen.width / 2),
+      ),
+      center.dy.clamp(
+        math.min(margin, screen.height / 2),
+        math.max(screen.height - margin, screen.height / 2),
+      ),
     );
   }
 
   /// Slice 0 is centred at the top; slices continue clockwise.
-  static double midAngle(int index, int count) => -math.pi / 2 + index * 2 * math.pi / count;
+  static double midAngle(int index, int count) =>
+      -math.pi / 2 + index * 2 * math.pi / count;
 
   /// Position of the label (and the middle of the slice) for [index].
   static Offset sliceCenter(Offset center, int count, int index) {
@@ -80,19 +87,19 @@ Future<void> showPieMenu(
     barrierLabel: 'Close menu',
     barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 120),
-    pageBuilder: (context, _, _) => _PieMenuLayer(center: center, items: items, title: title),
-    transitionBuilder: (context, animation, _, child) => FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: Tween(begin: 0.85, end: 1.0).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-        child: child,
-      ),
-    ),
+    pageBuilder: (context, _, _) =>
+        _PieMenuLayer(center: center, items: items, title: title),
+    transitionBuilder: (context, animation, _, child) =>
+        FadeTransition(opacity: animation, child: child),
   );
 }
 
 class _PieMenuLayer extends StatefulWidget {
-  const _PieMenuLayer({required this.center, required this.items, required this.title});
+  const _PieMenuLayer({
+    required this.center,
+    required this.items,
+    required this.title,
+  });
 
   final Offset center;
   final List<PieItem> items;
@@ -106,7 +113,8 @@ class _PieMenuLayerState extends State<_PieMenuLayer> {
   final _path = <PieItem>[];
   int _hover = -2;
 
-  List<PieItem> get _items => _path.isEmpty ? widget.items : _path.last.children;
+  List<PieItem> get _items =>
+      _path.isEmpty ? widget.items : _path.last.children;
 
   void _back() {
     if (_path.isEmpty) {
@@ -146,7 +154,9 @@ class _PieMenuLayerState extends State<_PieMenuLayer> {
     final center = PieLayout.clampCenter(widget.center, size);
     const box = PieLayout.largeOuter;
     final scheme = Theme.of(context).colorScheme;
-    final centerLabel = _path.isEmpty ? widget.title : _path.map((p) => p.label).join(' ');
+    final centerLabel = _path.isEmpty
+        ? widget.title
+        : _path.map((p) => p.label).join(' ');
 
     return Focus(
       autofocus: true,
@@ -172,7 +182,10 @@ class _PieMenuLayerState extends State<_PieMenuLayer> {
             height: box * 2,
             child: MouseRegion(
               onHover: (e) {
-                final h = PieLayout.hitTest(e.localPosition - const Offset(box, box), _items.length);
+                final h = PieLayout.hitTest(
+                  e.localPosition - const Offset(box, box),
+                  _items.length,
+                );
                 if (h != _hover) setState(() => _hover = h);
               },
               onExit: (_) => setState(() => _hover = -2),
@@ -221,7 +234,11 @@ class _PiePainter extends CustomPainter {
     final outerRect = Rect.fromCircle(center: c, radius: outer);
     final innerRect = Rect.fromCircle(center: c, radius: PieLayout.innerRadius);
 
-    canvas.drawCircle(c, outer + 3, Paint()..color = Colors.black.withValues(alpha: 0.35));
+    canvas.drawCircle(
+      c,
+      outer + 3,
+      Paint()..color = Colors.black.withValues(alpha: 0.35),
+    );
 
     for (var i = 0; i < count; i++) {
       final start = PieLayout.midAngle(i, count) - sweep / 2;
@@ -233,8 +250,8 @@ class _PiePainter extends CustomPainter {
       final fill = !item.enabled
           ? scheme.surfaceContainerHighest.withValues(alpha: 0.6)
           : i == hover
-              ? scheme.primary
-              : scheme.surfaceContainerHigh;
+          ? scheme.primary
+          : scheme.surfaceContainerHigh;
       canvas.drawPath(path, Paint()..color = fill);
       canvas.drawPath(
         path,
@@ -250,13 +267,17 @@ class _PiePainter extends CustomPainter {
         !item.enabled
             ? scheme.onSurface.withValues(alpha: 0.35)
             : i == hover
-                ? scheme.onPrimary
-                : scheme.onSurface,
+            ? scheme.onPrimary
+            : scheme.onSurface,
         bold: i == hover,
       );
     }
 
-    canvas.drawCircle(c, PieLayout.innerRadius - 2, Paint()..color = hover == -1 ? scheme.secondary : scheme.surface);
+    canvas.drawCircle(
+      c,
+      PieLayout.innerRadius,
+      Paint()..color = hover == -1 ? scheme.secondary : scheme.surface,
+    );
     _text(
       canvas,
       hasParent ? '‹ $centerLabel' : centerLabel,
@@ -267,12 +288,23 @@ class _PiePainter extends CustomPainter {
     );
   }
 
-  void _text(Canvas canvas, String text, Offset at, Color color,
-      {bool bold = false, double maxWidth = 70, double fontSize = 13}) {
+  void _text(
+    Canvas canvas,
+    String text,
+    Offset at,
+    Color color, {
+    bool bold = false,
+    double maxWidth = 70,
+    double fontSize = 13,
+  }) {
     final tp = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(color: color, fontSize: fontSize, fontWeight: bold ? FontWeight.bold : FontWeight.w500),
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+        ),
       ),
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
@@ -284,5 +316,8 @@ class _PiePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PiePainter old) =>
-      old.items != items || old.hover != hover || old.centerLabel != centerLabel || old.scheme != scheme;
+      old.items != items ||
+      old.hover != hover ||
+      old.centerLabel != centerLabel ||
+      old.scheme != scheme;
 }

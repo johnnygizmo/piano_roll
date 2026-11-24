@@ -31,7 +31,10 @@ class EditorActions {
   List<Note> get _selectedNotes {
     final track = _state.project.trackById(_trackId);
     if (track == null) return const [];
-    return [for (final n in track.notes) if (_editor.selection.contains(n.id)) n];
+    return [
+      for (final n in track.notes)
+        if (_editor.selection.contains(n.id)) n,
+    ];
   }
 
   void _snack(String message) {
@@ -47,10 +50,18 @@ class EditorActions {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Discard unsaved changes?'),
-        content: const Text('Your edits have not been exported to a .mid file.'),
+        content: const Text(
+          'Your edits have not been exported to a .mid file.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Discard'),
+          ),
         ],
       ),
     );
@@ -80,7 +91,9 @@ class EditorActions {
   }
 
   void exportFile() {
-    final name = _state.project.name.trim().isEmpty ? 'untitled' : _state.project.name.trim();
+    final name = _state.project.name.trim().isEmpty
+        ? 'untitled'
+        : _state.project.name.trim();
     downloadBytes('$name.mid', _doc.exportBytes());
     _doc.markSaved();
     _snack('Exported $name.mid');
@@ -121,7 +134,9 @@ class EditorActions {
     final notes = _selectedNotes;
     if (notes.isEmpty) return;
     final first = notes.map((n) => n.start).reduce(math.min);
-    _view.setClipboard([for (final n in notes) n.copyWith(start: n.start - first)]);
+    _view.setClipboard([
+      for (final n in notes) n.copyWith(start: n.start - first),
+    ]);
   }
 
   void cut() {
@@ -169,7 +184,8 @@ class EditorActions {
     if (dt == 0 && dp == 0) return;
     _doc.apply(
       (p) => Edits.replaceNotes(p, id, {
-        for (final n in notes) n.id: n.copyWith(start: n.start + dt, pitch: n.pitch + dp),
+        for (final n in notes)
+          n.id: n.copyWith(start: n.start + dt, pitch: n.pitch + dp),
       }),
     );
     if (dp != 0 && notes.length == 1) {
@@ -180,8 +196,57 @@ class EditorActions {
 
   int get snapTicks => _editor.snap.ticks(_state.project.ppq);
 
+  /// Transposes every selected note by [semitones] (negative = down), or,
+  /// with [copy], leaves them in place and adds transposed copies (which
+  /// become the selection). Does nothing if any note would leave the MIDI
+  /// range 0-127, so the intervals between the notes are never altered.
+  void transposeSelection(int semitones, {bool copy = false}) {
+    final id = _trackId;
+    final track = _state.project.trackById(id);
+    final notes = _selectedNotes;
+    if (id == null || track == null || notes.isEmpty) return;
+    if (notes.any(
+      (n) => n.pitch + semitones < 0 || n.pitch + semitones > 127,
+    )) {
+      _snack(
+        'Cannot transpose: some notes would leave the MIDI range (0-127).',
+      );
+      return;
+    }
+
+    final List<Note> moved;
+    if (copy) {
+      final taken = {for (final n in track.notes) (n.start, n.pitch)};
+      moved = [
+        for (final n in notes)
+          if (!taken.contains((n.start, n.pitch + semitones)))
+            n.clone(pitch: n.pitch + semitones),
+      ];
+      if (moved.isEmpty) {
+        _snack('Nothing to add: those notes already exist there.');
+        return;
+      }
+      _doc.apply((p) => Edits.addNotes(p, id, moved));
+      _view.setSelection({for (final n in moved) n.id});
+    } else {
+      _doc.apply(
+        (p) => Edits.replaceNotes(p, id, {
+          for (final n in notes) n.id: n.copyWith(pitch: n.pitch + semitones),
+        }),
+      );
+      moved = [for (final n in notes) n.copyWith(pitch: n.pitch + semitones)];
+    }
+    for (final n in moved.take(8)) {
+      auditionNote(ref, n.pitch, velocity: n.velocity, drum: track.isDrum);
+    }
+  }
+
   /// Stacks a root-position chord on [root] (same start, duration, velocity).
-  void generateChord(Note root, ChordQuality quality, ChordExtension extension) {
+  void generateChord(
+    Note root,
+    ChordQuality quality,
+    ChordExtension extension,
+  ) {
     final id = _trackId;
     final track = _state.project.trackById(id);
     if (id == null || track == null) return;
@@ -194,7 +259,9 @@ class EditorActions {
         if (!taken.contains(n.pitch)) n,
     ];
     if (chord.isEmpty) {
-      _snack('Nothing to add: the chord tones already exist or are out of range.');
+      _snack(
+        'Nothing to add: the chord tones already exist or are out of range.',
+      );
       return;
     }
     _doc.apply((p) => Edits.addNotes(p, id, chord));
@@ -212,7 +279,8 @@ class EditorActions {
     final snap = _editor.snap;
     _doc.apply(
       (p) => Edits.replaceNotes(p, id, {
-        for (final n in notes) n.id: n.copyWith(start: math.max(0, snap.round(n.start, ppq))),
+        for (final n in notes)
+          n.id: n.copyWith(start: math.max(0, snap.round(n.start, ppq))),
       }),
     );
   }

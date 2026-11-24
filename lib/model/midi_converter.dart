@@ -62,7 +62,8 @@ class MidiConverter {
       final channels = groups.keys.toList()..sort();
       // Channels carrying only controllers (no notes) stay with a noted
       // channel's track rather than becoming empty tracks.
-      bool hasNotes(int ch) => groups[ch]!.any((e) => e.command == 0x90 || e.command == 0x80);
+      bool hasNotes(int ch) =>
+          groups[ch]!.any((e) => e.command == 0x90 || e.command == 0x80);
       final noted = channels.where(hasNotes).toList();
       if (noted.isNotEmpty && noted.length < channels.length) {
         for (final ch in channels.where((c) => !noted.contains(c))) {
@@ -128,7 +129,9 @@ class MidiConverter {
     for (final e in events) {
       switch (e.command) {
         case 0x90 when e.data[1] > 0:
-          open.putIfAbsent(e.data[0], () => []).add(_OpenNote(e.tick, e.data[1]));
+          open
+              .putIfAbsent(e.data[0], () => [])
+              .add(_OpenNote(e.tick, e.data[1]));
         case 0x90 || 0x80:
           close(e.data[0], e.tick);
         case 0xC0 when program == null && e.tick == 0:
@@ -170,19 +173,23 @@ class MidiConverter {
     for (final t in input) {
       if (t.microsPerQuarter > 0) byTick[t.tick] = t;
     }
-    final list = byTick.values.toList()..sort((a, b) => a.tick.compareTo(b.tick));
+    final list = byTick.values.toList()
+      ..sort((a, b) => a.tick.compareTo(b.tick));
     if (list.isEmpty || list.first.tick != 0) {
       list.insert(0, const TempoChange(0, 500000));
     }
     return list;
   }
 
-  static List<TimeSignatureChange> _normalizeSigs(List<TimeSignatureChange> input) {
+  static List<TimeSignatureChange> _normalizeSigs(
+    List<TimeSignatureChange> input,
+  ) {
     final byTick = <int, TimeSignatureChange>{};
     for (final s in input) {
       if (s.numerator > 0 && s.denominatorPower <= 6) byTick[s.tick] = s;
     }
-    final list = byTick.values.toList()..sort((a, b) => a.tick.compareTo(b.tick));
+    final list = byTick.values.toList()
+      ..sort((a, b) => a.tick.compareTo(b.tick));
     if (list.isEmpty || list.first.tick != 0) {
       list.insert(0, const TimeSignatureChange(0, 4, 2));
     }
@@ -193,8 +200,7 @@ class MidiConverter {
   /// one MIDI track per editor track.
   static MidiFile toMidiFile(Project p) {
     final conductor = <MidiEvent>[
-      if (p.name.isNotEmpty)
-        MidiEvent.meta(0, 0x03, utf8.encode(p.name)),
+      if (p.name.isNotEmpty) MidiEvent.meta(0, 0x03, utf8.encode(p.name)),
       for (final t in p.tempos)
         MidiEvent.meta(t.tick, 0x51, [
           (t.microsPerQuarter >> 16) & 0xFF,

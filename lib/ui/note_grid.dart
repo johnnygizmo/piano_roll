@@ -21,16 +21,27 @@ import 'playhead.dart';
 enum _Mode { move, resize, marquee, erase, pan }
 
 class _Drag {
-  _Drag(this.mode, this.start, {this.anchor, this.originals = const {}, this.baseSelection = const {}})
-    : startScroll = Offset.zero;
+  _Drag(
+    this.mode,
+    this.start, {
+    this.anchor,
+    this.originals = const {},
+    this.baseSelection = const {},
+  }) : startScroll = Offset.zero;
 
   final _Mode mode;
   final Offset start;
-  final Note? anchor;
-  final Map<int, Note> originals;
+  Note? anchor;
+  Map<int, Note> originals;
   final Set<int> baseSelection;
   Offset startScroll;
   bool moved = false;
+
+  /// Alt was held when the drag began, or a second finger was down.
+  bool copyRequested = false;
+
+  /// The selection has been duplicated and the copies are being dragged.
+  bool copied = false;
   int lastDTick = 0;
   int lastDPitch = 0;
   int lastDDuration = 0;
@@ -49,6 +60,8 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
   Rect? _marquee;
   Timer? _longPress;
   Offset _longPressStart = Offset.zero;
+  int _dragPointer = -1;
+  final _touchPointers = <int>{};
   MouseCursor _cursor = SystemMouseCursors.basic;
 
   @override
@@ -64,7 +77,8 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
 
   Track? get _track => _project.trackById(_editor.activeTrackId);
 
-  Offset _toContent(Offset local) => local + Offset(_editor.scrollX, _editor.scrollY);
+  Offset _toContent(Offset local) =>
+      local + Offset(_editor.scrollX, _editor.scrollY);
 
   Rect _noteRect(Note n, EditorState e, int ppq) {
     final x0 = e.tickToX(n.start, ppq);
@@ -120,12 +134,23 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
 
   void _onDown(PointerDownEvent event) {
     editorFocusNode.requestFocus();
+    final isTouch = event.kind == PointerDeviceKind.touch;
+    if (isTouch) _touchPointers.add(event.pointer);
+    // An extra finger (or button) during a drag only modifies it: with two
+    // fingers a move drag copies. It never starts a second gesture.
+    if (_drag != null && event.pointer != _dragPointer) {
+      _cancelLongPress();
+      return;
+    }
+    _dragPointer = event.pointer;
+
     final track = _track;
     if (track == null) return;
     final content = _toContent(event.localPosition);
     final hit = _noteAt(content);
     final keys = HardwareKeyboard.instance;
-    final additive = keys.isShiftPressed || keys.isControlPressed || keys.isMetaPressed;
+    final additive =
+        keys.isShiftPressed || keys.isControlPressed || keys.isMetaPressed;
 
     if (event.buttons & kMiddleMouseButton != 0) {
       _drag = _Drag(_Mode.pan, event.localPosition)
@@ -165,7 +190,7 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
         event.localPosition,
         anchor: hit,
         originals: originals,
-      );
+      )..copyRequested = keys.isAltPressed;
       auditionNote(ref, hit.pitch, velocity: hit.velocity, drum: track.isDrum);
       if (event.kind == PointerDeviceKind.touch) _startLongPress(event, hit);
       return;
@@ -175,7 +200,8 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
       final ppq = _project.ppq;
       final e = _editor;
       final start = math.max(0, e.snap.floor(e.xToTick(content.dx, ppq), ppq));
-      final duration = e.lastDuration ?? (e.snap == Snap.off ? ppq ~/ 4 : e.snap.ticks(ppq));
+      final duration =
+          e.lastDuration ?? (e.snap == Snap.off ? ppq ~/ 4 : e.snap.ticks(ppq));
       final note = Note.create(
         pitch: e.yToPitch(content.dy),
         start: start,
@@ -212,8 +238,9 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
 
   void _onMove(PointerMoveEvent event) {
     final drag = _drag;
-    if (drag == null) return;
-    if (_longPress != null && (event.localPosition - _longPressStart).distance > 8) {
+    if (drag == null || event.pointer != _dragPointer) return;
+    if (_longPress != null &&
+        (event.localPosition - _longPressStart).distance > 8) {
       _cancelLongPress();
     }
     final e = _editor;
@@ -226,7 +253,10 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
       case _Mode.erase:
         _eraseAt(_toContent(event.localPosition));
       case _Mode.marquee:
-        final rect = Rect.fromPoints(_toContent(drag.start), _toContent(event.localPosition));
+        final rect = Rect.fromPoints(
+          _toContent(drag.start),
+          _toContent(event.localPosition),
+        );
         final track = _track;
         if (track == null) return;
         final inside = <int>{
@@ -253,7 +283,8 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
     final e = _editor;
     final ppq = _project.ppq;
     final rawTicks = delta.dx / e.zoomX * ppq;
-    var dTick = e.snap.round((anchor.start + rawTicks).round(), ppq) - anchor.start;
+    var dTick =
+        e.snap.round((anchor.start + rawTicks).round(), ppq) - anchor.start;
     var dPitch = -(delta.dy / e.zoomY).round();
 
     final notes = drag.originals.values;
@@ -267,14 +298,41 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
     drag.lastDTick = dTick;
     drag.lastDPitch = dPitch;
 
+    // Decided on the first real movement so a plain click never duplicates.
+    if (!drag.copied &&
+        (drag.copyRequested ||
+            _touchPointers.length >= 2 ||
+            HardwareKeyboard.instance.isAltPressed)) {
+      _beginCopy(drag, track.id);
+    }
+    final targets = drag.originals.values;
+
     _doc.updateGesture(
       (p) => Edits.replaceNotes(p, track.id, {
-        for (final n in notes) n.id: n.copyWith(start: n.start + dTick, pitch: n.pitch + dPitch),
+        for (final n in targets)
+          n.id: n.copyWith(start: n.start + dTick, pitch: n.pitch + dPitch),
       }),
     );
     if (pitchChanged) {
-      auditionNote(ref, anchor.pitch + dPitch, velocity: anchor.velocity, drum: track.isDrum);
+      auditionNote(
+        ref,
+        anchor.pitch + dPitch,
+        velocity: anchor.velocity,
+        drum: track.isDrum,
+      );
     }
+  }
+
+  /// Leaves the original notes in place and continues the drag with fresh
+  /// copies (selected), all within the same undoable gesture.
+  void _beginCopy(_Drag drag, int trackId) {
+    final anchor = drag.anchor!;
+    final clones = {for (final n in drag.originals.values) n.id: n.clone()};
+    _doc.updateGesture((p) => Edits.addNotes(p, trackId, clones.values));
+    drag.anchor = clones[anchor.id];
+    drag.originals = {for (final c in clones.values) c.id: c};
+    drag.copied = true;
+    _view.setSelection(drag.originals.keys.toSet());
   }
 
   void _applyResize(_Drag drag, Offset pos) {
@@ -287,7 +345,10 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
 
     final e = _editor;
     final ppq = _project.ppq;
-    final newEnd = e.snap.round((anchor.end + delta.dx / e.zoomX * ppq).round(), ppq);
+    final newEnd = e.snap.round(
+      (anchor.end + delta.dx / e.zoomX * ppq).round(),
+      ppq,
+    );
     final newDuration = math.max(_minDuration, newEnd - anchor.start);
     final dDuration = newDuration - anchor.duration;
     if (dDuration == drag.lastDDuration) return;
@@ -296,12 +357,17 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
     _doc.updateGesture(
       (p) => Edits.replaceNotes(p, track.id, {
         for (final n in drag.originals.values)
-          n.id: n.copyWith(duration: math.max(_minDuration, n.duration + dDuration)),
+          n.id: n.copyWith(
+            duration: math.max(_minDuration, n.duration + dDuration),
+          ),
       }),
     );
   }
 
   void _onUp(PointerEvent event) {
+    _touchPointers.remove(event.pointer);
+    // Lifting an extra finger must not end the drag of the primary pointer.
+    if (event.pointer != _dragPointer) return;
     _cancelLongPress();
     final drag = _drag;
     _drag = null;
@@ -323,8 +389,12 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
     }
     // A plain click on one of several selected notes narrows the selection.
     final keys = HardwareKeyboard.instance;
-    final additive = keys.isShiftPressed || keys.isControlPressed || keys.isMetaPressed;
-    if (!drag.moved && !additive && e.selection.length > 1 && drag.mode == _Mode.move) {
+    final additive =
+        keys.isShiftPressed || keys.isControlPressed || keys.isMetaPressed;
+    if (!drag.moved &&
+        !additive &&
+        e.selection.length > 1 &&
+        drag.mode == _Mode.move) {
       _view.setSelection({anchor.id});
     }
   }
@@ -335,6 +405,8 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
     if (hit != null && _editor.tool != EditTool.erase) {
       cursor = _inResizeZone(hit, _toContent(event.localPosition))
           ? SystemMouseCursors.resizeLeftRight
+          : HardwareKeyboard.instance.isAltPressed
+          ? SystemMouseCursors.copy
           : SystemMouseCursors.move;
     } else {
       cursor = switch (_editor.tool) {
@@ -413,8 +485,15 @@ class _GridPainter extends CustomPainter {
     final offY = e.scrollY;
 
     // Pitch rows.
-    final topPitch = (pitchCount - 1 - (offY / e.zoomY).floor()).clamp(0, pitchCount - 1);
-    final bottomPitch = (pitchCount - 1 - ((offY + size.height) / e.zoomY).floor()).clamp(0, pitchCount - 1);
+    final topPitch = (pitchCount - 1 - (offY / e.zoomY).floor()).clamp(
+      0,
+      pitchCount - 1,
+    );
+    final bottomPitch =
+        (pitchCount - 1 - ((offY + size.height) / e.zoomY).floor()).clamp(
+          0,
+          pitchCount - 1,
+        );
     final white = Paint()..color = const Color(0xFF26262B);
     final black = Paint()..color = const Color(0xFF1C1C20);
     final rowLine = Paint()
@@ -430,7 +509,11 @@ class _GridPainter extends CustomPainter {
         isBlackKey(pitch) ? black : white,
       );
       final bottom = y + e.zoomY;
-      canvas.drawLine(Offset(0, bottom), Offset(size.width, bottom), pitch % 12 == 0 ? octaveLine : rowLine);
+      canvas.drawLine(
+        Offset(0, bottom),
+        Offset(size.width, bottom),
+        pitch % 12 == 0 ? octaveLine : rowLine,
+      );
     }
 
     // Time grid.
@@ -448,7 +531,11 @@ class _GridPainter extends CustomPainter {
     final showSub = e.zoomX >= 64;
     for (final line in gridLines(project, t0, t1)) {
       final x = e.tickToX(line.tick, ppq) - offX;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), line.isBar ? barPaint : beatPaint);
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        line.isBar ? barPaint : beatPaint,
+      );
       if (showSub) {
         for (var k = 1; k < 4; k++) {
           final sx = e.tickToX(line.tick + line.beatTicks * k ~/ 4, ppq) - offX;
@@ -479,8 +566,15 @@ class _GridPainter extends CustomPainter {
         final selected = e.selection.contains(n.id);
         paint.color = selected
             ? Color.lerp(color, Colors.white, 0.45)!
-            : Color.lerp(color.withValues(alpha: 0.55), color, n.velocity / 127)!;
-        final r = RRect.fromRectAndRadius(rect.deflate(0.75), const Radius.circular(2));
+            : Color.lerp(
+                color.withValues(alpha: 0.55),
+                color,
+                n.velocity / 127,
+              )!;
+        final r = RRect.fromRectAndRadius(
+          rect.deflate(0.75),
+          const Radius.circular(2),
+        );
         canvas.drawRRect(r, paint);
         canvas.drawRRect(
           r,
@@ -494,7 +588,10 @@ class _GridPainter extends CustomPainter {
 
     final m = marquee;
     if (m != null) {
-      canvas.drawRect(m, Paint()..color = scheme.primary.withValues(alpha: 0.18));
+      canvas.drawRect(
+        m,
+        Paint()..color = scheme.primary.withValues(alpha: 0.18),
+      );
       canvas.drawRect(
         m,
         Paint()

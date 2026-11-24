@@ -14,7 +14,9 @@ class KeyboardView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final editor = ref.watch(editorProvider);
     final isDrum = ref.watch(
-      projectProvider.select((s) => s.project.trackById(editor.activeTrackId)?.isDrum ?? false),
+      projectProvider.select(
+        (s) => s.project.trackById(editor.activeTrackId)?.isDrum ?? false,
+      ),
     );
     return WheelRegion(
       axis: WheelAxis.verticalOnly,
@@ -43,8 +45,15 @@ class _KeyboardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final topPitch = (pitchCount - 1 - (scrollY / zoomY).floor()).clamp(0, pitchCount - 1);
-    final bottomPitch = (pitchCount - 1 - ((scrollY + size.height) / zoomY).floor()).clamp(0, pitchCount - 1);
+    final topPitch = (pitchCount - 1 - (scrollY / zoomY).floor()).clamp(
+      0,
+      pitchCount - 1,
+    );
+    final bottomPitch =
+        (pitchCount - 1 - ((scrollY + size.height) / zoomY).floor()).clamp(
+          0,
+          pitchCount - 1,
+        );
     final whitePaint = Paint()..color = const Color(0xFFEDEDED);
     final blackPaint = Paint()..color = const Color(0xFF222222);
     final border = Paint()
@@ -54,12 +63,21 @@ class _KeyboardPainter extends CustomPainter {
     for (var pitch = bottomPitch; pitch <= topPitch; pitch++) {
       final y = (pitchCount - 1 - pitch) * zoomY - scrollY;
       final black = isBlackKey(pitch);
-      final rect = Rect.fromLTWH(0, y, black ? size.width * 0.62 : size.width, zoomY);
+      final rect = Rect.fromLTWH(
+        0,
+        y,
+        black ? size.width * 0.62 : size.width,
+        zoomY,
+      );
       if (black) {
         canvas.drawRect(Rect.fromLTWH(0, y, size.width, zoomY), whitePaint);
       }
       canvas.drawRect(rect, black ? blackPaint : whitePaint);
-      canvas.drawLine(Offset(0, y + zoomY), Offset(size.width, y + zoomY), border);
+      canvas.drawLine(
+        Offset(0, y + zoomY),
+        Offset(size.width, y + zoomY),
+        border,
+      );
       if (pitch % 12 == 0 && zoomY >= 10) {
         final tp = TextPainter(
           text: TextSpan(
@@ -68,11 +86,15 @@ class _KeyboardPainter extends CustomPainter {
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        tp.paint(canvas, Offset(size.width - tp.width - 4, y + (zoomY - tp.height) / 2));
+        tp.paint(
+          canvas,
+          Offset(size.width - tp.width - 4, y + (zoomY - tp.height) / 2),
+        );
       }
     }
   }
 
   @override
-  bool shouldRepaint(_KeyboardPainter old) => old.scrollY != scrollY || old.zoomY != zoomY;
+  bool shouldRepaint(_KeyboardPainter old) =>
+      old.scrollY != scrollY || old.zoomY != zoomY;
 }

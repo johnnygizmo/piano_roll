@@ -7,7 +7,7 @@ import '../state/editor_provider.dart';
 import '../state/project_provider.dart';
 import 'constants.dart';
 
-/// Left panel listing tracks with select, mute/solo and properties.
+/// Track list shown in the side drawer: select, mute/solo, properties.
 class TrackPanel extends ConsumerWidget {
   const TrackPanel({super.key});
 
@@ -26,7 +26,12 @@ class TrackPanel extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(12, 6, 4, 0),
             child: Row(
               children: [
-                const Expanded(child: Text('Tracks', style: TextStyle(fontWeight: FontWeight.bold))),
+                const Expanded(
+                  child: Text(
+                    'Tracks',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
                 IconButton(
                   tooltip: 'Add track',
                   icon: const Icon(Icons.add),
@@ -42,12 +47,20 @@ class TrackPanel extends ConsumerWidget {
                 final track = tracks[i];
                 final selected = track.id == editor.activeTrackId;
                 return Material(
-                  color: selected ? scheme.primaryContainer.withValues(alpha: 0.45) : Colors.transparent,
+                  color: selected
+                      ? scheme.primaryContainer.withValues(alpha: 0.45)
+                      : Colors.transparent,
                   child: InkWell(
-                    onTap: () => ref.read(editorProvider.notifier).selectTrack(track.id),
+                    onTap: () {
+                      ref.read(editorProvider.notifier).selectTrack(track.id);
+                      // Choosing a track means "edit this one": get out of the way.
+                      Scaffold.maybeOf(context)?.closeDrawer();
+                    },
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border(left: BorderSide(color: trackColor(i), width: 4)),
+                        border: Border(
+                          left: BorderSide(color: trackColor(i), width: 4),
+                        ),
                       ),
                       padding: const EdgeInsets.fromLTRB(8, 6, 2, 6),
                       child: Row(
@@ -56,7 +69,10 @@ class TrackPanel extends ConsumerWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(track.name.isEmpty ? '(unnamed)' : track.name, overflow: TextOverflow.ellipsis),
+                                Text(
+                                  track.name.isEmpty ? '(unnamed)' : track.name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 Text(
                                   track.isDrum
                                       ? 'Ch ${track.channel + 1} · Drums · ${track.notes.length} notes'
@@ -72,24 +88,38 @@ class TrackPanel extends ConsumerWidget {
                             tooltip: 'Mute',
                             on: editor.muted.contains(track.id),
                             color: Colors.orange,
-                            onTap: () => ref.read(editorProvider.notifier).toggleMute(track.id),
+                            onTap: () => ref
+                                .read(editorProvider.notifier)
+                                .toggleMute(track.id),
                           ),
                           _ToggleChip(
                             label: 'S',
                             tooltip: 'Solo',
                             on: editor.solo.contains(track.id),
                             color: Colors.green,
-                            onTap: () => ref.read(editorProvider.notifier).toggleSolo(track.id),
+                            onTap: () => ref
+                                .read(editorProvider.notifier)
+                                .toggleSolo(track.id),
                           ),
                           PopupMenuButton<String>(
                             tooltip: 'Track options',
                             iconSize: 18,
                             onSelected: (v) {
                               if (v == 'edit') _editTrack(context, ref, track);
-                              if (v == 'delete') _deleteTrack(context, ref, track, tracks.length);
+                              if (v == 'delete') {
+                                _deleteTrack(
+                                  context,
+                                  ref,
+                                  track,
+                                  tracks.length,
+                                );
+                              }
                             },
                             itemBuilder: (_) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Properties…')),
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Properties…'),
+                              ),
                               PopupMenuItem(
                                 value: 'delete',
                                 enabled: tracks.length > 1,
@@ -117,31 +147,53 @@ class TrackPanel extends ConsumerWidget {
     while (used.contains(channel) && channel < 15) {
       channel++;
     }
-    final track = Track.create(name: 'Track ${project.tracks.length + 1}', channel: channel);
+    final track = Track.create(
+      name: 'Track ${project.tracks.length + 1}',
+      channel: channel,
+    );
     ref.read(projectProvider.notifier).apply((p) => Edits.addTrack(p, track));
     ref.read(editorProvider.notifier).selectTrack(track.id);
   }
 
-  Future<void> _deleteTrack(BuildContext context, WidgetRef ref, Track track, int count) async {
+  Future<void> _deleteTrack(
+    BuildContext context,
+    WidgetRef ref,
+    Track track,
+    int count,
+  ) async {
     if (count <= 1) return;
     if (track.notes.isNotEmpty) {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text('Delete "${track.name}"?'),
-          content: Text('This removes ${track.notes.length} notes (undo is available).'),
+          content: Text(
+            'This removes ${track.notes.length} notes (undo is available).',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Delete'),
+            ),
           ],
         ),
       );
       if (ok != true) return;
     }
-    ref.read(projectProvider.notifier).apply((p) => Edits.removeTrack(p, track.id));
+    ref
+        .read(projectProvider.notifier)
+        .apply((p) => Edits.removeTrack(p, track.id));
   }
 
-  Future<void> _editTrack(BuildContext context, WidgetRef ref, Track track) async {
+  Future<void> _editTrack(
+    BuildContext context,
+    WidgetRef ref,
+    Track track,
+  ) async {
     final nameController = TextEditingController(text: track.name);
     var channel = track.channel;
     var program = track.program;
@@ -163,9 +215,12 @@ class TrackPanel extends ConsumerWidget {
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
                   initialValue: channel,
-                  decoration: const InputDecoration(labelText: 'MIDI channel (10 = drums)'),
+                  decoration: const InputDecoration(
+                    labelText: 'MIDI channel (10 = drums)',
+                  ),
                   items: [
-                    for (var c = 0; c < 16; c++) DropdownMenuItem(value: c, child: Text('${c + 1}')),
+                    for (var c = 0; c < 16; c++)
+                      DropdownMenuItem(value: c, child: Text('${c + 1}')),
                   ],
                   onChanged: (v) => setState(() => channel = v ?? channel),
                 ),
@@ -173,10 +228,15 @@ class TrackPanel extends ConsumerWidget {
                 DropdownButtonFormField<int>(
                   initialValue: program,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Instrument (GM program)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Instrument (GM program)',
+                  ),
                   items: [
                     for (var i = 0; i < generalMidiPrograms.length; i++)
-                      DropdownMenuItem(value: i, child: Text('${i + 1}. ${generalMidiPrograms[i]}')),
+                      DropdownMenuItem(
+                        value: i,
+                        child: Text('${i + 1}. ${generalMidiPrograms[i]}'),
+                      ),
                   ],
                   onChanged: (v) => setState(() => program = v ?? program),
                 ),
@@ -184,8 +244,14 @@ class TrackPanel extends ConsumerWidget {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('OK')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('OK'),
+            ),
           ],
         ),
       ),
@@ -193,13 +259,15 @@ class TrackPanel extends ConsumerWidget {
     final name = nameController.text;
     nameController.dispose();
     if (result != true) return;
-    ref.read(projectProvider.notifier).apply(
-      (p) => Edits.mapTrack(
-        p,
-        track.id,
-        (t) => t.copyWith(name: name, channel: channel, program: program),
-      ),
-    );
+    ref
+        .read(projectProvider.notifier)
+        .apply(
+          (p) => Edits.mapTrack(
+            p,
+            track.id,
+            (t) => t.copyWith(name: name, channel: channel, program: program),
+          ),
+        );
   }
 }
 
@@ -237,7 +305,11 @@ class _ToggleChip extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: TextStyle(fontSize: 12, color: on ? Colors.black : Colors.white70, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 12,
+              color: on ? Colors.black : Colors.white70,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
       ),

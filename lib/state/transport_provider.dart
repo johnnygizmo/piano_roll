@@ -23,7 +23,13 @@ class TransportState {
 }
 
 class _ScheduledNote {
-  const _ScheduledNote(this.startMicros, this.durationSeconds, this.pitch, this.velocity, this.drum);
+  const _ScheduledNote(
+    this.startMicros,
+    this.durationSeconds,
+    this.pitch,
+    this.velocity,
+    this.drum,
+  );
   final double startMicros;
   final double durationSeconds;
   final int pitch;
@@ -67,7 +73,9 @@ class TransportNotifier extends Notifier<TransportState> {
     final anySolo = editor.solo.isNotEmpty;
     final scheduled = <_ScheduledNote>[];
     for (final track in project.tracks) {
-      final audible = anySolo ? editor.solo.contains(track.id) : !editor.muted.contains(track.id);
+      final audible = anySolo
+          ? editor.solo.contains(track.id)
+          : !editor.muted.contains(track.id);
       if (!audible) continue;
       for (final n in track.notes) {
         if (n.start < from) continue;

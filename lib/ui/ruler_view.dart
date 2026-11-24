@@ -16,7 +16,10 @@ class RulerView extends ConsumerWidget {
   void _seek(WidgetRef ref, double localX) {
     final editor = ref.read(editorProvider);
     final ppq = ref.read(projectProvider).project.ppq;
-    final tick = editor.snap.round(editor.xToTick(localX + editor.scrollX, ppq), ppq);
+    final tick = editor.snap.round(
+      editor.xToTick(localX + editor.scrollX, ppq),
+      ppq,
+    );
     ref.read(transportProvider.notifier).seek(tick);
   }
 
@@ -41,7 +44,9 @@ class RulerView extends ConsumerWidget {
                   project: project,
                   scrollX: editor.scrollX,
                   zoomX: editor.zoomX,
-                  background: Theme.of(context).colorScheme.surfaceContainerHigh,
+                  background: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHigh,
                   textColor: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
@@ -93,7 +98,11 @@ class _RulerPainter extends CustomPainter {
         )..layout();
         tp.paint(canvas, Offset(x + 4, 4));
       } else if (beatPx >= 24) {
-        canvas.drawLine(Offset(x, size.height * 0.6), Offset(x, size.height), line);
+        canvas.drawLine(
+          Offset(x, size.height * 0.6),
+          Offset(x, size.height),
+          line,
+        );
       }
     }
     canvas.drawLine(

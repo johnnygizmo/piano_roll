@@ -66,7 +66,11 @@ List<int> chordIntervals(ChordQuality quality, ChordExtension extension) {
 /// New notes of a root-position chord built on [root], sharing its start,
 /// duration and velocity. The root itself is not included; tones above
 /// MIDI note 127 are dropped.
-List<Note> buildChord(Note root, ChordQuality quality, ChordExtension extension) => [
+List<Note> buildChord(
+  Note root,
+  ChordQuality quality,
+  ChordExtension extension,
+) => [
   for (final interval in chordIntervals(quality, extension))
     if (root.pitch + interval <= 127)
       Note.create(

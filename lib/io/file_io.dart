@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
-import 'file_io_stub.dart' if (dart.library.js_interop) 'file_io_web.dart' as impl;
+import 'file_io_stub.dart'
+    if (dart.library.js_interop) 'file_io_web.dart'
+    as impl;
 
 class PickedFile {
   const PickedFile(this.name, this.bytes);

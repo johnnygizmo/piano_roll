@@ -59,16 +59,29 @@ class ProjectNotifier extends Notifier<ProjectState> {
 
   void newProject() {
     _resetHistory();
-    state = _next(Project.empty(), dirty: false, warnings: const [], newDocument: true);
+    state = _next(
+      Project.empty(),
+      dirty: false,
+      warnings: const [],
+      newDocument: true,
+    );
   }
 
   /// Parses [bytes]; throws a MidiFormatException for unusable files.
   void loadBytes(Uint8List bytes, String fileName) {
     final file = MidiReader.parse(bytes);
-    final base = fileName.replaceFirst(RegExp(r'\.midi?$', caseSensitive: false), '');
+    final base = fileName.replaceFirst(
+      RegExp(r'\.midi?$', caseSensitive: false),
+      '',
+    );
     final project = MidiConverter.fromMidiFile(file, name: base);
     _resetHistory();
-    state = _next(project, dirty: false, warnings: file.warnings, newDocument: true);
+    state = _next(
+      project,
+      dirty: false,
+      warnings: file.warnings,
+      newDocument: true,
+    );
   }
 
   Uint8List exportBytes() =>

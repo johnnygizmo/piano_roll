@@ -116,7 +116,9 @@ class EditorNotifier extends Notifier<EditorState> {
         _resetForDocument(next.project);
       } else if (next.project.trackById(state.activeTrackId) == null) {
         state = EditorState(
-          activeTrackId: next.project.tracks.isEmpty ? null : next.project.tracks.first.id,
+          activeTrackId: next.project.tracks.isEmpty
+              ? null
+              : next.project.tracks.first.id,
           tool: state.tool,
           snap: state.snap,
           zoomX: state.zoomX,
@@ -162,7 +164,11 @@ class EditorNotifier extends Notifier<EditorState> {
     _pendingCenterPitch = null;
     final y = (pitchCount - 1 - pitch) * state.zoomY + state.zoomY / 2;
     state = state.copyWith(
-      scrollY: _clampY(y - state.viewport.height / 2, state.zoomY, state.viewport),
+      scrollY: _clampY(
+        y - state.viewport.height / 2,
+        state.zoomY,
+        state.viewport,
+      ),
     );
   }
 
@@ -193,10 +199,13 @@ class EditorNotifier extends Notifier<EditorState> {
 
   void setSelection(Set<int> ids) => state = state.copyWith(selection: ids);
   void clearSelection() => state = state.copyWith(selection: const {});
-  void setClipboard(List<Note> notes) => state = state.copyWith(clipboard: notes);
-  void setLastDuration(int ticks) => state = state.copyWith(lastDuration: ticks);
+  void setClipboard(List<Note> notes) =>
+      state = state.copyWith(clipboard: notes);
+  void setLastDuration(int ticks) =>
+      state = state.copyWith(lastDuration: ticks);
 
-  void scrollBy(double dx, double dy) => scrollTo(state.scrollX + dx, state.scrollY + dy);
+  void scrollBy(double dx, double dy) =>
+      scrollTo(state.scrollX + dx, state.scrollY + dy);
 
   void scrollTo(double x, double y) {
     state = state.copyWith(
@@ -226,13 +235,11 @@ class EditorNotifier extends Notifier<EditorState> {
     );
   }
 
-  void toggleMute(int trackId) => state = state.copyWith(
-    muted: {...state.muted}..toggle(trackId),
-  );
+  void toggleMute(int trackId) =>
+      state = state.copyWith(muted: {...state.muted}..toggle(trackId));
 
-  void toggleSolo(int trackId) => state = state.copyWith(
-    solo: {...state.solo}..toggle(trackId),
-  );
+  void toggleSolo(int trackId) =>
+      state = state.copyWith(solo: {...state.solo}..toggle(trackId));
 }
 
 extension on Set<int> {

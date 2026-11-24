@@ -13,6 +13,7 @@ import 'keyboard_view.dart';
 import 'note_grid.dart';
 import 'ruler_view.dart';
 import 'scrollbars.dart';
+import 'song_drawer.dart';
 import 'toolbar.dart';
 import 'track_panel.dart';
 import 'velocity_lane.dart';
@@ -54,7 +55,8 @@ class PianoRollPage extends ConsumerWidget {
       return KeyEventResult.handled;
     }
 
-    if (key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) {
+    if (key == LogicalKeyboardKey.delete ||
+        key == LogicalKeyboardKey.backspace) {
       actions.deleteSelected();
     } else if (key == LogicalKeyboardKey.space) {
       actions.togglePlay();
@@ -64,6 +66,8 @@ class PianoRollPage extends ConsumerWidget {
       view.setTool(EditTool.draw);
     } else if (key == LogicalKeyboardKey.keyE) {
       view.setTool(EditTool.erase);
+    } else if (key == LogicalKeyboardKey.keyT) {
+      scaffoldKey.currentState?.openDrawer();
     } else if (key == LogicalKeyboardKey.keyQ) {
       actions.quantize();
     } else if (key == LogicalKeyboardKey.arrowLeft) {
@@ -95,12 +99,25 @@ class PianoRollPage extends ConsumerWidget {
       final editor = ref.read(editorProvider);
       final ppq = ref.read(projectProvider).project.ppq;
       final x = editor.tickToX(next.tick, ppq);
-      if (x < editor.scrollX || x > editor.scrollX + editor.viewport.width - 24) {
+      if (x < editor.scrollX ||
+          x > editor.scrollX + editor.viewport.width - 24) {
         ref.read(editorProvider.notifier).scrollTo(x - 48, editor.scrollY);
       }
     });
 
     return Scaffold(
+      key: scaffoldKey,
+      drawer: const Drawer(
+        width: trackPanelWidth,
+        child: SafeArea(child: TrackPanel()),
+      ),
+      endDrawer: const Drawer(width: songDrawerWidth, child: SongDrawer()),
+      onDrawerChanged: (open) {
+        if (!open) editorFocusNode.requestFocus();
+      },
+      onEndDrawerChanged: (open) {
+        if (!open) editorFocusNode.requestFocus();
+      },
       body: Focus(
         focusNode: editorFocusNode,
         autofocus: true,
@@ -110,58 +127,55 @@ class PianoRollPage extends ConsumerWidget {
             const Toolbar(),
             const Divider(height: 1),
             Expanded(
-              child: Row(
+              child: Column(
                 children: [
-                  const TrackPanel(),
-                  const VerticalDivider(width: 1),
-                  Expanded(
-                    child: Column(
+                  const SizedBox(
+                    height: rulerHeight,
+                    child: Row(
                       children: [
-                        const SizedBox(
-                          height: rulerHeight,
-                          child: Row(
-                            children: [
-                              SizedBox(width: keyboardWidth),
-                              Expanded(child: RulerView()),
-                              SizedBox(width: scrollbarThickness),
-                            ],
+                        SizedBox(width: keyboardWidth),
+                        Expanded(child: RulerView()),
+                        SizedBox(width: scrollbarThickness),
+                      ],
+                    ),
+                  ),
+                  const Expanded(
+                    child: Row(
+                      children: [
+                        SizedBox(width: keyboardWidth, child: KeyboardView()),
+                        Expanded(child: NoteGrid()),
+                        SizedBox(
+                          width: scrollbarThickness,
+                          child: AxisScrollbar(axis: Axis.vertical),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(
+                    height: velocityHeight,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: keyboardWidth,
+                          child: Center(
+                            child: Text(
+                              'Velocity',
+                              style: TextStyle(fontSize: 11),
+                            ),
                           ),
                         ),
-                        const Expanded(
-                          child: Row(
-                            children: [
-                              SizedBox(width: keyboardWidth, child: KeyboardView()),
-                              Expanded(child: NoteGrid()),
-                              SizedBox(
-                                width: scrollbarThickness,
-                                child: AxisScrollbar(axis: Axis.vertical),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(
-                          height: velocityHeight,
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: keyboardWidth,
-                                child: Center(child: Text('Velocity', style: TextStyle(fontSize: 11))),
-                              ),
-                              Expanded(child: VelocityLane()),
-                              SizedBox(width: scrollbarThickness),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(
-                          height: scrollbarThickness,
-                          child: Row(
-                            children: [
-                              SizedBox(width: keyboardWidth),
-                              Expanded(child: AxisScrollbar(axis: Axis.horizontal)),
-                              SizedBox(width: scrollbarThickness),
-                            ],
-                          ),
-                        ),
+                        Expanded(child: VelocityLane()),
+                        SizedBox(width: scrollbarThickness),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(
+                    height: scrollbarThickness,
+                    child: Row(
+                      children: [
+                        SizedBox(width: keyboardWidth),
+                        Expanded(child: AxisScrollbar(axis: Axis.horizontal)),
+                        SizedBox(width: scrollbarThickness),
                       ],
                     ),
                   ),

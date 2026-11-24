@@ -1,6 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/editor_provider.dart';
@@ -10,8 +10,19 @@ import '../state/transport_provider.dart';
 /// from text fields (tempo, dialogs) to the shortcut handler.
 final FocusNode editorFocusNode = FocusNode(debugLabel: 'editor');
 
+/// Key of the page's Scaffold so the toolbar and the T shortcut can open the
+/// tracks drawer.
+final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>(
+  debugLabel: 'scaffold',
+);
+
 /// Plays a short preview of [pitch] (used when clicking keys or editing notes).
-void auditionNote(WidgetRef ref, int pitch, {int velocity = 100, bool drum = false}) {
+void auditionNote(
+  WidgetRef ref,
+  int pitch, {
+  int velocity = 100,
+  bool drum = false,
+}) {
   final audio = ref.read(audioProvider);
   audio.resume();
   audio.playNote(
@@ -30,7 +41,11 @@ enum WheelAxis { both, verticalOnly }
 /// Wheel scrolls, Shift+wheel scrolls horizontally, Ctrl+wheel zooms time and
 /// Alt+wheel zooms pitch rows.
 class WheelRegion extends ConsumerWidget {
-  const WheelRegion({super.key, required this.child, this.axis = WheelAxis.both});
+  const WheelRegion({
+    super.key,
+    required this.child,
+    this.axis = WheelAxis.both,
+  });
 
   final Widget child;
   final WheelAxis axis;

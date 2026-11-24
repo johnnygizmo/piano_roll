@@ -72,7 +72,10 @@ class MidiReader {
   static int _findHeader(Uint8List b) {
     final limit = b.length - 4;
     for (var i = 0; i <= limit && i < 4096; i++) {
-      if (b[i] == 0x4D && b[i + 1] == 0x54 && b[i + 2] == 0x68 && b[i + 3] == 0x64) {
+      if (b[i] == 0x4D &&
+          b[i + 1] == 0x54 &&
+          b[i + 2] == 0x68 &&
+          b[i + 3] == 0x64) {
         return i;
       }
     }
@@ -130,7 +133,9 @@ class MidiReader {
         if (status == 0xFF) {
           final type = readByte();
           final data = readBlock(readVlq());
-          events.add(MidiEvent(tick: tick, status: 0xFF, metaType: type, data: data));
+          events.add(
+            MidiEvent(tick: tick, status: 0xFF, metaType: type, data: data),
+          );
           running = null;
           if (type == 0x2F) break;
         } else if (status == 0xF0 || status == 0xF7) {
@@ -148,20 +153,28 @@ class MidiReader {
           running = null;
         } else {
           running = status;
-          final count = (status & 0xF0) == 0xC0 || (status & 0xF0) == 0xD0 ? 1 : 2;
+          final count = (status & 0xF0) == 0xC0 || (status & 0xF0) == 0xD0
+              ? 1
+              : 2;
           final data = readBlock(count);
           for (final b in data) {
             if (b & 0x80 != 0) {
-              throw const MidiFormatException('Invalid data byte in channel event');
+              throw const MidiFormatException(
+                'Invalid data byte in channel event',
+              );
             }
           }
           events.add(MidiEvent(tick: tick, status: status, data: data));
         }
       }
     } on _Truncated {
-      warnings.add('Track ${index + 1} ends unexpectedly; kept events read so far.');
+      warnings.add(
+        'Track ${index + 1} ends unexpectedly; kept events read so far.',
+      );
     } on MidiFormatException catch (e) {
-      warnings.add('Track ${index + 1}: ${e.message}; kept events read so far.');
+      warnings.add(
+        'Track ${index + 1}: ${e.message}; kept events read so far.',
+      );
     }
     return events;
   }

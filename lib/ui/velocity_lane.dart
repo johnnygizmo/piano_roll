@@ -49,7 +49,8 @@ class _VelocityLaneState extends ConsumerState<VelocityLane> {
     _anchor = best;
     _originals = {
       for (final n in track.notes)
-        if (n.id == best.id || (inSelection && editor.selection.contains(n.id))) n.id: n,
+        if (n.id == best.id || (inSelection && editor.selection.contains(n.id)))
+          n.id: n,
     };
     if (!inSelection) ref.read(editorProvider.notifier).setSelection({best.id});
     ref.read(projectProvider.notifier).beginGesture();
@@ -62,12 +63,14 @@ class _VelocityLaneState extends ConsumerState<VelocityLane> {
     if (anchor == null || trackId == null) return;
     final target = ((1 - y / _height) * 127).round().clamp(1, 127);
     final delta = target - anchor.velocity;
-    ref.read(projectProvider.notifier).updateGesture(
-      (p) => Edits.replaceNotes(p, trackId, {
-        for (final n in _originals.values)
-          n.id: n.copyWith(velocity: (n.velocity + delta).clamp(1, 127)),
-      }),
-    );
+    ref
+        .read(projectProvider.notifier)
+        .updateGesture(
+          (p) => Edits.replaceNotes(p, trackId, {
+            for (final n in _originals.values)
+              n.id: n.copyWith(velocity: (n.velocity + delta).clamp(1, 127)),
+          }),
+        );
   }
 
   void _up(PointerEvent event) {
@@ -81,7 +84,9 @@ class _VelocityLaneState extends ConsumerState<VelocityLane> {
   Widget build(BuildContext context) {
     final project = ref.watch(projectProvider.select((s) => s.project));
     final editor = ref.watch(editorProvider);
-    final trackIndex = project.tracks.indexWhere((t) => t.id == editor.activeTrackId);
+    final trackIndex = project.tracks.indexWhere(
+      (t) => t.id == editor.activeTrackId,
+    );
     final scheme = Theme.of(context).colorScheme;
 
     return LayoutBuilder(

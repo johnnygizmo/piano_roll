@@ -18,8 +18,12 @@ class AxisScrollbar extends ConsumerWidget {
     final editor = ref.watch(editorProvider);
     final project = ref.watch(projectProvider.select((s) => s.project));
     final horizontal = axis == Axis.horizontal;
-    final viewport = horizontal ? editor.viewport.width : editor.viewport.height;
-    final content = horizontal ? editor.contentWidth(project) : editor.contentHeight;
+    final viewport = horizontal
+        ? editor.viewport.width
+        : editor.viewport.height;
+    final content = horizontal
+        ? editor.contentWidth(project)
+        : editor.contentHeight;
     final offset = horizontal ? editor.scrollX : editor.scrollY;
     final scheme = Theme.of(context).colorScheme;
 
@@ -35,7 +39,8 @@ class AxisScrollbar extends ConsumerWidget {
         return GestureDetector(
           onPanUpdate: (d) {
             if (travel <= 0) return;
-            final delta = (horizontal ? d.delta.dx : d.delta.dy) / travel * range;
+            final delta =
+                (horizontal ? d.delta.dx : d.delta.dy) / travel * range;
             final view = ref.read(editorProvider.notifier);
             horizontal ? view.scrollBy(delta, 0) : view.scrollBy(0, delta);
           },
