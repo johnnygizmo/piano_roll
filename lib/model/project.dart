@@ -21,13 +21,34 @@ class TimeSignatureChange {
   int get denominator => 1 << denominatorPower;
 }
 
-/// The whole document: timing, tempo/time-signature maps and tracks.
+/// A MIDI key signature meta event (0x59): [sharps] is -7 (seven flats) to
+/// 7 (seven sharps).
+class KeySignatureChange {
+  const KeySignatureChange(this.tick, this.sharps, this.minor);
+
+  final int tick;
+  final int sharps;
+  final bool minor;
+
+  @override
+  bool operator ==(Object other) =>
+      other is KeySignatureChange &&
+      other.tick == tick &&
+      other.sharps == sharps &&
+      other.minor == minor;
+
+  @override
+  int get hashCode => Object.hash(tick, sharps, minor);
+}
+
+/// The whole document: timing, tempo/time/key-signature maps and tracks.
 class Project {
   const Project({
     required this.name,
     required this.ppq,
     required this.tempos,
     required this.timeSignatures,
+    this.keySignatures = const [KeySignatureChange(0, 0, false)],
     required this.tracks,
     this.conductorExtras = const [],
   });
@@ -50,15 +71,19 @@ class Project {
 
   /// Sorted by tick; always has an entry at tick 0.
   final List<TimeSignatureChange> timeSignatures;
+
+  /// Sorted by tick; always has an entry at tick 0.
+  final List<KeySignatureChange> keySignatures;
   final List<Track> tracks;
 
-  /// Meta events from tracks without notes (markers, key signature...).
+  /// Meta events from tracks without notes (markers...).
   final List<MidiEvent> conductorExtras;
 
   Project copyWith({
     String? name,
     List<TempoChange>? tempos,
     List<TimeSignatureChange>? timeSignatures,
+    List<KeySignatureChange>? keySignatures,
     List<Track>? tracks,
     List<MidiEvent>? conductorExtras,
   }) => Project(
@@ -66,6 +91,7 @@ class Project {
     ppq: ppq,
     tempos: tempos ?? this.tempos,
     timeSignatures: timeSignatures ?? this.timeSignatures,
+    keySignatures: keySignatures ?? this.keySignatures,
     tracks: tracks ?? this.tracks,
     conductorExtras: conductorExtras ?? this.conductorExtras,
   );

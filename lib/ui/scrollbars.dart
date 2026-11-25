@@ -26,17 +26,37 @@ class AxisScrollbar extends ConsumerWidget {
         : editor.contentHeight;
     final offset = horizontal ? editor.scrollX : editor.scrollY;
     final scheme = Theme.of(context).colorScheme;
+    final thickness = scrollbarThicknessFor(context);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final track = horizontal ? constraints.maxWidth : constraints.maxHeight;
         final ratio = content <= 0 ? 1.0 : math.min(1.0, viewport / content);
-        final thumb = math.max(28.0, track * ratio);
+        final thumb = math.min(track, math.max(thickness * 2.5, track * ratio));
         final range = math.max(1.0, content - viewport);
         final travel = math.max(0.0, track - thumb);
         final thumbPos = (offset / range * travel).clamp(0.0, travel);
 
+        // Pressing the track jumps so the thumb is centred under the finger.
+        void jumpTo(Offset local) {
+          if (travel <= 0) return;
+          final p = horizontal ? local.dx : local.dy;
+          final target = ((p - thumb / 2) / travel).clamp(0.0, 1.0) * range;
+          final view = ref.read(editorProvider.notifier);
+          horizontal
+              ? view.scrollTo(target, editor.scrollY)
+              : view.scrollTo(editor.scrollX, target);
+        }
+
         return GestureDetector(
+          onTapDown: (d) {
+            final p = horizontal ? d.localPosition.dx : d.localPosition.dy;
+            if (p < thumbPos || p > thumbPos + thumb) jumpTo(d.localPosition);
+          },
+          onPanStart: (d) {
+            final p = horizontal ? d.localPosition.dx : d.localPosition.dy;
+            if (p < thumbPos || p > thumbPos + thumb) jumpTo(d.localPosition);
+          },
           onPanUpdate: (d) {
             if (travel <= 0) return;
             final delta =
@@ -51,8 +71,8 @@ class AxisScrollbar extends ConsumerWidget {
                 Positioned(
                   left: horizontal ? thumbPos : 2,
                   top: horizontal ? 2 : thumbPos,
-                  width: horizontal ? thumb : scrollbarThickness - 4,
-                  height: horizontal ? scrollbarThickness - 4 : thumb,
+                  width: horizontal ? thumb : thickness - 4,
+                  height: horizontal ? thickness - 4 : thumb,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: scheme.onSurface.withValues(alpha: 0.35),

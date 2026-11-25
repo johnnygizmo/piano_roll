@@ -29,12 +29,16 @@ class _ScheduledNote {
     this.pitch,
     this.velocity,
     this.drum,
+    this.program,
+    this.channel,
   );
   final double startMicros;
   final double durationSeconds;
   final int pitch;
   final int velocity;
   final bool drum;
+  final int program;
+  final int channel;
 }
 
 /// Plays the project through the [AudioEngine] with look-ahead scheduling and
@@ -88,6 +92,8 @@ class TransportNotifier extends Notifier<TransportState> {
             n.pitch,
             n.velocity,
             track.isDrum,
+            track.program,
+            track.channel,
           ),
         );
       }
@@ -119,6 +125,8 @@ class TransportNotifier extends Notifier<TransportState> {
         when: _startAudioTime + (n.startMicros - _startMicros) / 1e6,
         duration: n.durationSeconds,
         drum: n.drum,
+        program: n.program,
+        channel: n.channel,
       );
     }
 

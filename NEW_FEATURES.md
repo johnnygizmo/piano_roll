@@ -1,0 +1,15 @@
+- [x] Dragging on Piano Vertically scrolls the piano roll vertically
+- [x] The Velocity area is collapseable
+- [x] Add an Edit Note Option to Pie Menu
+    - [x] Cut
+    - [x] Copy
+    - [x] Paste
+    - [x] Delete
+    - [x] Resize
+      - [x] Lengthen (increase length by current snap size)
+      - [x] Shorten (decrease length by current snap size, but not if doing so would erase the note)
+      - [x] Set Size
+        - [x] Options based on snap size
+- [x] Remove Scale and Arpeggio Options from Pie Menu
+- [x] Better Horizonal Scroll control (especially for smaller screens like an iPhone)
+- [x] Sheet music ouput using opensheetmusicdisplay  with PDF output

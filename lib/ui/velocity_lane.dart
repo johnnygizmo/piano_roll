@@ -10,6 +10,65 @@ import 'constants.dart';
 import 'interaction.dart';
 import 'playhead.dart';
 
+/// Velocity lane with its label column; the header arrow collapses the lane
+/// to a thin strip to give the note grid more room.
+class VelocitySection extends ConsumerWidget {
+  const VelocitySection({super.key});
+
+  static const double collapsedHeight = 24;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final expanded = ref.watch(velocityLaneExpandedProvider);
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      height: expanded ? velocityHeight : collapsedHeight,
+      child: Row(
+        children: [
+          SizedBox(
+            width: keyboardWidth,
+            child: InkWell(
+              onTap: () {
+                ref.read(velocityLaneExpandedProvider.notifier).toggle();
+                editorFocusNode.requestFocus();
+              },
+              child: Tooltip(
+                message: expanded
+                    ? 'Collapse velocity lane'
+                    : 'Expand velocity lane',
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          expanded ? Icons.expand_more : Icons.expand_less,
+                          size: 16,
+                        ),
+                        const Text('Velocity', style: TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: expanded
+                ? const VelocityLane()
+                : ColoredBox(
+                    color: scheme.surfaceContainerLow,
+                    child: const SizedBox.expand(),
+                  ),
+          ),
+          SizedBox(width: scrollbarThicknessFor(context)),
+        ],
+      ),
+    );
+  }
+}
+
 /// Velocity bars for the active track. Drag a bar to change velocity; if the
 /// note is selected the whole selection moves by the same amount.
 class VelocityLane extends ConsumerStatefulWidget {

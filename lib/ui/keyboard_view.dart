@@ -6,26 +6,66 @@ import '../state/project_provider.dart';
 import 'constants.dart';
 import 'interaction.dart';
 
-/// Piano keys on the left edge. Click a key to preview the pitch.
-class KeyboardView extends ConsumerWidget {
+/// Piano keys on the left edge. Tap a key to preview the pitch; drag up or
+/// down to scroll the note grid vertically.
+class KeyboardView extends ConsumerStatefulWidget {
   const KeyboardView({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KeyboardView> createState() => _KeyboardViewState();
+}
+
+class _KeyboardViewState extends ConsumerState<KeyboardView> {
+  static const _dragSlop = 6.0;
+
+  int _pointer = -1;
+  Offset _downAt = Offset.zero;
+  double _lastY = 0;
+  bool _dragged = false;
+
+  void _down(PointerDownEvent e) {
+    editorFocusNode.requestFocus();
+    if (_pointer != -1) return;
+    _pointer = e.pointer;
+    _downAt = e.localPosition;
+    _lastY = e.localPosition.dy;
+    _dragged = false;
+  }
+
+  void _move(PointerMoveEvent e) {
+    if (e.pointer != _pointer) return;
+    if (!_dragged && (e.localPosition - _downAt).distance < _dragSlop) return;
+    _dragged = true;
+    ref.read(editorProvider.notifier).scrollBy(0, _lastY - e.localPosition.dy);
+    _lastY = e.localPosition.dy;
+  }
+
+  void _up(PointerEvent e, {required bool isTap}) {
+    if (e.pointer != _pointer) return;
+    _pointer = -1;
+    if (!isTap || _dragged) return;
+    final editor = ref.read(editorProvider);
+    final isDrum =
+        ref
+            .read(projectProvider)
+            .project
+            .trackById(editor.activeTrackId)
+            ?.isDrum ??
+        false;
+    final pitch = editor.yToPitch(_downAt.dy + editor.scrollY);
+    auditionNote(ref, pitch, drum: isDrum);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final editor = ref.watch(editorProvider);
-    final isDrum = ref.watch(
-      projectProvider.select(
-        (s) => s.project.trackById(editor.activeTrackId)?.isDrum ?? false,
-      ),
-    );
     return WheelRegion(
       axis: WheelAxis.verticalOnly,
       child: Listener(
-        onPointerDown: (e) {
-          editorFocusNode.requestFocus();
-          final pitch = editor.yToPitch(e.localPosition.dy + editor.scrollY);
-          auditionNote(ref, pitch, drum: isDrum);
-        },
+        onPointerDown: _down,
+        onPointerMove: _move,
+        onPointerUp: (e) => _up(e, isTap: true),
+        onPointerCancel: (e) => _up(e, isTap: false),
         child: ClipRect(
           child: CustomPaint(
             painter: _KeyboardPainter(editor.scrollY, editor.zoomY),

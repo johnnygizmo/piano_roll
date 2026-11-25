@@ -7,6 +7,12 @@ const double trackPanelWidth = 300;
 const double songDrawerWidth = 340;
 const double scrollbarThickness = 12;
 
+/// Screens narrower than this (phones) get fatter, touch-friendly scrollbars.
+const double compactWidth = 700;
+
+double scrollbarThicknessFor(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < compactWidth ? 26 : scrollbarThickness;
+
 /// Pixels from a note's right edge that act as a resize handle.
 const double resizeHandleWidth = 7;
 

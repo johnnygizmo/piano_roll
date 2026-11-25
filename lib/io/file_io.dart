@@ -20,3 +20,18 @@ void downloadBytes(String fileName, Uint8List bytes) =>
 /// Asks the browser to confirm before the tab is closed with unsaved edits.
 void setUnsavedChangesWarning(bool enabled) =>
     impl.setUnsavedChangesWarning(enabled);
+
+/// Opens a new browser tab that renders [musicXml] as sheet music, with
+/// buttons to print / save it as a PDF. Returns false if the tab was blocked.
+/// [showTitle] and [showStaffLabels] control what the renderer draws.
+bool openSheetMusic(
+  String title,
+  String musicXml, {
+  bool showTitle = true,
+  bool showStaffLabels = true,
+}) => impl.openSheetMusic(
+  title,
+  musicXml,
+  showTitle: showTitle,
+  showStaffLabels: showStaffLabels,
+);

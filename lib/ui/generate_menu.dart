@@ -10,10 +10,11 @@ import 'editor_actions.dart';
 import 'interaction.dart';
 import 'pie_menu.dart';
 
-/// Pie menu opened on a note: Chord, Scale, Arpeggio (planned), Transpose.
+/// Pie menu opened on a note: Chord, Edit (cut/copy/paste/delete/resize) and
+/// Transpose.
 ///
-/// Transpose acts on the whole selection; if the clicked note is not part of
-/// it, the selection becomes just that note first.
+/// Edit and Transpose act on the whole selection; if the clicked note is not
+/// part of it, the selection becomes just that note first.
 Future<void> showGenerateMenu(
   BuildContext context,
   WidgetRef ref, {
@@ -48,8 +49,36 @@ Future<void> showGenerateMenu(
             ),
         ],
       ),
-      const PieItem('Scale', enabled: false),
-      const PieItem('Arpeggio', enabled: false),
+      PieItem(
+        'Edit',
+        children: [
+          PieItem('Cut', onSelected: actions.cut),
+          PieItem('Copy', onSelected: actions.copy),
+          PieItem(
+            'Paste',
+            enabled: actions.canPaste,
+            onSelected: actions.paste,
+          ),
+          PieItem('Delete', onSelected: actions.deleteSelected),
+          PieItem(
+            'Resize',
+            children: [
+              PieItem('Lengthen', onSelected: actions.lengthenSelected),
+              PieItem('Shorten', onSelected: actions.shortenSelected),
+              PieItem(
+                'Set Size',
+                children: [
+                  for (final choice in actions.lengthChoices)
+                    PieItem(
+                      choice.label,
+                      onSelected: () => actions.setSelectedLength(choice.ticks),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
       PieItem(
         'Transpose',
         children: [

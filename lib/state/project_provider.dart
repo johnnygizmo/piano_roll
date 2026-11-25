@@ -68,7 +68,9 @@ class ProjectNotifier extends Notifier<ProjectState> {
   }
 
   /// Parses [bytes]; throws a MidiFormatException for unusable files.
-  void loadBytes(Uint8List bytes, String fileName) {
+  /// [dirty] marks the loaded document as having unsaved changes (used when
+  /// restoring an autosaved copy).
+  void loadBytes(Uint8List bytes, String fileName, {bool dirty = false}) {
     final file = MidiReader.parse(bytes);
     final base = fileName.replaceFirst(
       RegExp(r'\.midi?$', caseSensitive: false),
@@ -78,7 +80,7 @@ class ProjectNotifier extends Notifier<ProjectState> {
     _resetHistory();
     state = _next(
       project,
-      dirty: false,
+      dirty: dirty,
       warnings: file.warnings,
       newDocument: true,
     );

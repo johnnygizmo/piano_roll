@@ -66,6 +66,8 @@ class PianoRollPage extends ConsumerWidget {
       view.setTool(EditTool.draw);
     } else if (key == LogicalKeyboardKey.keyE) {
       view.setTool(EditTool.erase);
+    } else if (key == LogicalKeyboardKey.keyH) {
+      view.setTool(EditTool.pan);
     } else if (key == LogicalKeyboardKey.keyT) {
       scaffoldKey.currentState?.openDrawer();
     } else if (key == LogicalKeyboardKey.keyQ) {
@@ -89,6 +91,7 @@ class PianoRollPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final thickness = scrollbarThicknessFor(context);
     ref.listen<bool>(projectProvider.select((s) => s.dirty), (_, dirty) {
       setUnsavedChangesWarning(dirty);
     });
@@ -129,53 +132,41 @@ class PianoRollPage extends ConsumerWidget {
             Expanded(
               child: Column(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     height: rulerHeight,
                     child: Row(
                       children: [
-                        SizedBox(width: keyboardWidth),
-                        Expanded(child: RulerView()),
-                        SizedBox(width: scrollbarThickness),
+                        const SizedBox(width: keyboardWidth),
+                        const Expanded(child: RulerView()),
+                        SizedBox(width: thickness),
                       ],
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Row(
                       children: [
-                        SizedBox(width: keyboardWidth, child: KeyboardView()),
-                        Expanded(child: NoteGrid()),
-                        SizedBox(
-                          width: scrollbarThickness,
-                          child: AxisScrollbar(axis: Axis.vertical),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(
-                    height: velocityHeight,
-                    child: Row(
-                      children: [
-                        SizedBox(
+                        const SizedBox(
                           width: keyboardWidth,
-                          child: Center(
-                            child: Text(
-                              'Velocity',
-                              style: TextStyle(fontSize: 11),
-                            ),
-                          ),
+                          child: KeyboardView(),
                         ),
-                        Expanded(child: VelocityLane()),
-                        SizedBox(width: scrollbarThickness),
+                        const Expanded(child: NoteGrid()),
+                        SizedBox(
+                          width: thickness,
+                          child: const AxisScrollbar(axis: Axis.vertical),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(
-                    height: scrollbarThickness,
+                  const VelocitySection(),
+                  SizedBox(
+                    height: thickness,
                     child: Row(
                       children: [
-                        SizedBox(width: keyboardWidth),
-                        Expanded(child: AxisScrollbar(axis: Axis.horizontal)),
-                        SizedBox(width: scrollbarThickness),
+                        const SizedBox(width: keyboardWidth),
+                        const Expanded(
+                          child: AxisScrollbar(axis: Axis.horizontal),
+                        ),
+                        SizedBox(width: thickness),
                       ],
                     ),
                   ),

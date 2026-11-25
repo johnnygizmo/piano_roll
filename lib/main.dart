@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'ui/piano_roll_page.dart';
+import 'ui/restore_gate.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,7 @@ class PianoRollApp extends StatelessWidget {
         ),
         visualDensity: VisualDensity.compact,
       ),
-      home: const PianoRollPage(),
+      home: const RestoreGate(child: PianoRollPage()),
     );
   }
 }

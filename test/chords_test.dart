@@ -118,7 +118,7 @@ void main() {
   ) async {
     final center = PieLayout.clampCenter(menuAt, const Size(1600, 900));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tapAt(PieLayout.sliceCenter(center, 4, 0)); // Chord
+    await tester.tapAt(PieLayout.sliceCenter(center, 3, 0)); // Chord
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tapAt(PieLayout.sliceCenter(center, 4, quality));
     await tester.pump(const Duration(milliseconds: 50));
@@ -165,6 +165,44 @@ void main() {
     },
   );
 
+  testWidgets('Edit menu: Lengthen, Shorten (never erases) and Set Size', (
+    tester,
+  ) async {
+    final (container, notePos) = await setup(tester);
+    Note note() =>
+        container.read(projectProvider).project.tracks.first.notes.single;
+
+    // Resize -> [path...]; ring sizes: top 3, Edit 5, Resize 3, Set Size 8.
+    Future<void> resize(List<(int, int)> path) async {
+      final at = notePos();
+      final g = await tester.startGesture(
+        at,
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await g.up();
+      final center = PieLayout.clampCenter(at, const Size(1600, 900));
+      await tester.pump(const Duration(milliseconds: 300));
+      for (final (count, index) in [(3, 1), (5, 4), ...path]) {
+        await tester.tapAt(PieLayout.sliceCenter(center, count, index));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    expect(note().duration, 480);
+    await resize([(3, 0)]); // Lengthen by the 1/16 snap
+    expect(note().duration, 600);
+    await resize([(3, 1)]); // Shorten
+    expect(note().duration, 480);
+    await resize([(3, 2), (8, 1)]); // Set Size 1/2
+    expect(note().duration, 960);
+    await resize([(3, 2), (8, 5)]); // Set Size 1/32
+    expect(note().duration, 60);
+    await resize([(3, 1)]); // 60 - 120 would erase it: unchanged
+    expect(note().duration, 60);
+  });
+
   testWidgets(
     'Transpose acts on the selection, refuses out-of-range, targets the clicked note otherwise',
     (tester) async {
@@ -204,7 +242,7 @@ void main() {
         await g.up();
         final center = PieLayout.clampCenter(at, const Size(1600, 900));
         await tester.pump(const Duration(milliseconds: 300));
-        await tester.tapAt(PieLayout.sliceCenter(center, 4, 3)); // Transpose
+        await tester.tapAt(PieLayout.sliceCenter(center, 3, 2)); // Transpose
         await tester.pump(const Duration(milliseconds: 50));
         await tester.tapAt(
           PieLayout.sliceCenter(center, 4, direction),

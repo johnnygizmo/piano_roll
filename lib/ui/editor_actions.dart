@@ -3,14 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../io/chord_detect.dart';
 import '../io/file_io.dart';
 import '../midi/midi_events.dart';
 import '../model/chords.dart';
 import '../model/editing.dart';
+import '../model/musicxml.dart';
 import '../model/note.dart';
 import '../model/snap_and_grid.dart';
 import '../state/editor_provider.dart';
 import '../state/project_provider.dart';
+import '../state/sheet_options_provider.dart';
 import '../state/transport_provider.dart';
 import 'interaction.dart';
 
@@ -97,6 +100,30 @@ class EditorActions {
     downloadBytes('$name.mid', _doc.exportBytes());
     _doc.markSaved();
     _snack('Exported $name.mid');
+  }
+
+  void showSheetMusic() {
+    final options = ref.read(sheetOptionsProvider);
+    final xml = projectToMusicXml(
+      _state.project,
+      options: options,
+      chordDetector: tonalChordDetector(),
+    );
+    if (xml == null) {
+      _snack('Nothing to show: no track has any notes.');
+      return;
+    }
+    final name = _state.project.name.trim();
+    if (!openSheetMusic(
+      name.isEmpty ? 'untitled' : name,
+      xml,
+      showTitle: options.title,
+      showStaffLabels: options.staffLabels,
+    )) {
+      _snack(
+        'The browser blocked the sheet music tab. Allow pop-ups and retry.',
+      );
+    }
   }
 
   void undo() {
@@ -271,6 +298,46 @@ class EditorActions {
     }
   }
 
+  /// Step used by lengthen/shorten: the snap size, or a 1/128 note with snap off.
+  int get resizeStep => _editor.snap == Snap.off
+      ? math.max(1, _state.project.ppq ~/ 32)
+      : snapTicks;
+
+  /// Lengthens every selected note by one snap step.
+  void lengthenSelected() {
+    final step = resizeStep;
+    _resizeSelected((n) => n.duration + step);
+  }
+
+  /// Shortens every selected note by one snap step; notes that would vanish
+  /// (length <= 0) are left unchanged.
+  void shortenSelected() {
+    final step = resizeStep;
+    _resizeSelected((n) => n.duration - step > 0 ? n.duration - step : null);
+  }
+
+  /// Gives every selected note exactly [ticks] length.
+  void setSelectedLength(int ticks) {
+    if (ticks < 1) return;
+    _resizeSelected((n) => ticks);
+  }
+
+  void _resizeSelected(int? Function(Note) newDuration) {
+    final id = _trackId;
+    final notes = _selectedNotes;
+    if (id == null || notes.isEmpty) return;
+    final updates = <int, Note>{};
+    for (final n in notes) {
+      final d = newDuration(n);
+      if (d != null && d != n.duration) updates[n.id] = n.copyWith(duration: d);
+    }
+    if (updates.isEmpty) {
+      _snack('Nothing to resize.');
+      return;
+    }
+    _doc.apply((p) => Edits.replaceNotes(p, id, updates));
+  }
+
   void quantize() {
     final id = _trackId;
     final notes = _selectedNotes;
@@ -290,4 +357,17 @@ class EditorActions {
   void stop() => ref.read(transportProvider.notifier).stop();
 
   void setSnap(Snap snap) => _view.setSnap(snap);
+
+  /// Note lengths offered by the "Set Size" pie menu.
+  List<({String label, int ticks})> get lengthChoices {
+    final ppq = _state.project.ppq;
+    return [
+      (label: '1/1', ticks: ppq * 4),
+      (label: '1/2', ticks: ppq * 2),
+      for (final s in Snap.values)
+        if (s != Snap.off) (label: s.label, ticks: s.ticks(ppq)),
+    ];
+  }
+
+  bool get canPaste => _editor.clipboard.isNotEmpty;
 }

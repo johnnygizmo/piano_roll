@@ -43,6 +43,16 @@ class Edits {
     ],
   );
 
+  /// Moves the track at [from] so it ends up at index [to] of the new list.
+  static Project moveTrack(Project p, int from, int to) {
+    if (from < 0 || from >= p.tracks.length) return p;
+    final target = to.clamp(0, p.tracks.length - 1);
+    if (target == from) return p;
+    final tracks = [...p.tracks];
+    tracks.insert(target, tracks.removeAt(from));
+    return p.copyWith(tracks: tracks);
+  }
+
   static Project setTempo(Project p, double bpm) {
     final micros = (60000000 / bpm.clamp(10, 400)).round();
     return p.copyWith(
@@ -60,6 +70,14 @@ class Edits {
       ...p.timeSignatures.where((s) => s.tick != 0),
     ],
   );
+
+  static Project setKeySignature(Project p, int sharps, bool minor) =>
+      p.copyWith(
+        keySignatures: [
+          KeySignatureChange(0, sharps.clamp(-7, 7), minor),
+          ...p.keySignatures.where((k) => k.tick != 0),
+        ],
+      );
 
   static Project setName(Project p, String name) => p.copyWith(name: name);
 }

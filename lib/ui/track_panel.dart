@@ -41,12 +41,17 @@ class TrackPanel extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: ListView.builder(
+            child: ReorderableListView.builder(
+              buildDefaultDragHandles: false,
               itemCount: tracks.length,
+              onReorderItem: (from, to) => ref
+                  .read(projectProvider.notifier)
+                  .apply((p) => Edits.moveTrack(p, from, to)),
               itemBuilder: (context, i) {
                 final track = tracks[i];
                 final selected = track.id == editor.activeTrackId;
                 return Material(
+                  key: ValueKey(track.id),
                   color: selected
                       ? scheme.primaryContainer.withValues(alpha: 0.45)
                       : Colors.transparent,
@@ -65,6 +70,23 @@ class TrackPanel extends ConsumerWidget {
                       padding: const EdgeInsets.fromLTRB(8, 6, 2, 6),
                       child: Row(
                         children: [
+                          ReorderableDragStartListener(
+                            index: i,
+                            child: const Tooltip(
+                              message: 'Drag to reorder',
+                              child: MouseRegion(
+                                cursor: SystemMouseCursors.grab,
+                                child: Padding(
+                                  padding: EdgeInsets.only(right: 4),
+                                  child: Icon(
+                                    Icons.drag_indicator,
+                                    size: 18,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

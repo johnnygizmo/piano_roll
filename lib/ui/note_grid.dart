@@ -163,6 +163,11 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
     }
 
     final tool = _editor.tool;
+    if (tool == EditTool.pan) {
+      _drag = _Drag(_Mode.pan, event.localPosition)
+        ..startScroll = Offset(_editor.scrollX, _editor.scrollY);
+      return;
+    }
     if (tool == EditTool.erase) {
       _doc.beginGesture();
       _drag = _Drag(_Mode.erase, event.localPosition);
@@ -402,7 +407,9 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
   void _onHover(PointerHoverEvent event) {
     final hit = _noteAt(_toContent(event.localPosition));
     final MouseCursor cursor;
-    if (hit != null && _editor.tool != EditTool.erase) {
+    if (hit != null &&
+        _editor.tool != EditTool.erase &&
+        _editor.tool != EditTool.pan) {
       cursor = _inResizeZone(hit, _toContent(event.localPosition))
           ? SystemMouseCursors.resizeLeftRight
           : HardwareKeyboard.instance.isAltPressed
@@ -413,6 +420,7 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
         EditTool.draw => SystemMouseCursors.precise,
         EditTool.erase => SystemMouseCursors.disappearing,
         EditTool.select => SystemMouseCursors.basic,
+        EditTool.pan => SystemMouseCursors.grab,
       };
     }
     if (cursor != _cursor) setState(() => _cursor = cursor);

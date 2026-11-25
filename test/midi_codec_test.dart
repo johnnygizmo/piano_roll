@@ -137,6 +137,7 @@ void main() {
         ppq: 480,
         tempos: const [TempoChange(0, 500000), TempoChange(1920, 400000)],
         timeSignatures: const [TimeSignatureChange(0, 6, 3)],
+        keySignatures: const [KeySignatureChange(0, -3, true)],
         tracks: [
           Track.create(
             name: 'Lead',
@@ -169,6 +170,7 @@ void main() {
         (1920, 400000),
       ]);
       expect(copy.timeSignatures.single.denominator, 8);
+      expect(copy.keySignatures, const [KeySignatureChange(0, -3, true)]);
       expect(copy.tracks.length, 2);
 
       final lead = copy.tracks[0];

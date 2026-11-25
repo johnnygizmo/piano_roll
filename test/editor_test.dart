@@ -8,10 +8,13 @@ import 'package:piano_roll/model/note.dart';
 import 'package:piano_roll/model/project.dart';
 import 'package:piano_roll/model/snap_and_grid.dart';
 import 'package:piano_roll/model/tempo_map.dart';
+import 'package:piano_roll/model/track.dart';
 import 'package:piano_roll/state/editor_provider.dart';
 import 'package:piano_roll/state/project_provider.dart';
 import 'package:piano_roll/state/transport_provider.dart';
+import 'package:piano_roll/ui/keyboard_view.dart';
 import 'package:piano_roll/ui/note_grid.dart';
+import 'package:piano_roll/ui/velocity_lane.dart';
 
 int _byStartThenPitch((int, int) a, (int, int) b) =>
     a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2.compareTo(b.$2);
@@ -402,6 +405,46 @@ void main() {
     },
   );
 
+  testWidgets('dragging a track handle reorders the tracks', (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const ProviderScope(child: PianoRollApp()));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PianoRollApp)),
+    );
+    final doc = container.read(projectProvider.notifier);
+    doc.apply(
+      (p) => Edits.addTrack(
+        Edits.addTrack(p, Track.create(name: 'Second')),
+        Track.create(name: 'Third'),
+      ),
+    );
+    List<String> names() => [
+      for (final t in container.read(projectProvider).project.tracks) t.name,
+    ];
+    expect(names(), ['Track 1', 'Second', 'Third']);
+
+    await tester.tap(find.byIcon(Icons.queue_music));
+    await tester.pumpAndSettle();
+    final handles = find.byIcon(Icons.drag_indicator);
+    expect(handles, findsNWidgets(3));
+
+    // Drag the first track below the third.
+    final gesture = await tester.startGesture(tester.getCenter(handles.first));
+    await tester.pump(const Duration(milliseconds: 100));
+    await gesture.moveBy(const Offset(0, 300));
+    await tester.pump(const Duration(milliseconds: 100));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(names(), ['Second', 'Third', 'Track 1']);
+
+    doc.undo();
+    expect(names(), ['Track 1', 'Second', 'Third']);
+  });
+
   testWidgets('app builds with toolbar, tracks and grid', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);
     tester.view.devicePixelRatio = 1;
@@ -451,4 +494,50 @@ void main() {
     await tester.pump();
     expect(container.read(transportProvider).playing, isFalse);
   });
+
+  testWidgets(
+    'dragging the piano keys scrolls vertically; velocity lane collapses; pan tool drags the grid',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(const ProviderScope(child: PianoRollApp()));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(PianoRollApp)),
+      );
+      EditorState editor() => container.read(editorProvider);
+
+      // Dragging a key scrolls instead of drawing; the content follows the finger.
+      final startY = editor().scrollY;
+      final key = tester.getCenter(find.byType(KeyboardView));
+      await tester.dragFrom(key, const Offset(0, 60));
+      await tester.pump();
+      expect(editor().scrollY, closeTo(startY - 60, 12));
+
+      // Collapse and expand the velocity lane.
+      expect(find.byType(VelocityLane), findsOneWidget);
+      await tester.tap(find.byTooltip('Collapse velocity lane'));
+      await tester.pump();
+      expect(find.byType(VelocityLane), findsNothing);
+      await tester.tap(find.byTooltip('Expand velocity lane'));
+      await tester.pump();
+      expect(find.byType(VelocityLane), findsOneWidget);
+
+      // The pan tool scrolls horizontally without adding notes.
+      container.read(editorProvider.notifier).setTool(EditTool.pan);
+      await tester.pump();
+      await tester.dragFrom(
+        tester.getCenter(find.byType(NoteGrid)),
+        const Offset(-200, 0),
+      );
+      await tester.pump();
+      expect(editor().scrollX, greaterThan(100));
+      expect(
+        container.read(projectProvider).project.tracks.first.notes,
+        isEmpty,
+      );
+    },
+  );
 }

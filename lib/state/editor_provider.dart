@@ -8,7 +8,9 @@ import '../model/project.dart';
 import '../model/snap_and_grid.dart';
 import 'project_provider.dart';
 
-enum EditTool { select, draw, erase }
+/// [pan] drags the view instead of editing (the only way to scroll with one
+/// finger on a touch screen).
+enum EditTool { select, draw, erase, pan }
 
 const int pitchCount = 128;
 const double minZoomX = 8; // pixels per quarter note
@@ -251,3 +253,14 @@ extension on Set<int> {
 final editorProvider = NotifierProvider<EditorNotifier, EditorState>(
   EditorNotifier.new,
 );
+
+/// Whether the velocity lane under the note grid is expanded.
+class VelocityLaneNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void toggle() => state = !state;
+}
+
+final velocityLaneExpandedProvider =
+    NotifierProvider<VelocityLaneNotifier, bool>(VelocityLaneNotifier.new);

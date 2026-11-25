@@ -18,6 +18,7 @@ class MidiConverter {
   static Project fromMidiFile(MidiFile file, {String name = 'Untitled'}) {
     final tempos = <TempoChange>[];
     final sigs = <TimeSignatureChange>[];
+    final keys = <KeySignatureChange>[];
     final conductorExtras = <MidiEvent>[];
     final tracks = <Track>[];
 
@@ -40,6 +41,13 @@ class MidiConverter {
               );
             case 0x58 when e.data.length >= 2:
               sigs.add(TimeSignatureChange(e.tick, e.data[0], e.data[1]));
+            case 0x59 when e.data.length >= 2 && e.data[1] <= 1:
+              final sf = e.data[0] > 127 ? e.data[0] - 256 : e.data[0];
+              if (sf >= -7 && sf <= 7) {
+                keys.add(KeySignatureChange(e.tick, sf, e.data[1] == 1));
+              } else {
+                others.add(e);
+              }
             case 0x03:
               trackName ??= utf8.decode(e.data, allowMalformed: true);
             case 0x2F:
@@ -94,6 +102,7 @@ class MidiConverter {
       ppq: file.division,
       tempos: _normalizeTempos(tempos),
       timeSignatures: _normalizeSigs(sigs),
+      keySignatures: _normalizeKeys(keys),
       tracks: tracks.isEmpty ? [Track.create(name: 'Track 1')] : tracks,
       conductorExtras: conductorExtras,
     );
@@ -196,6 +205,21 @@ class MidiConverter {
     return list;
   }
 
+  static List<KeySignatureChange> _normalizeKeys(
+    List<KeySignatureChange> input,
+  ) {
+    final byTick = <int, KeySignatureChange>{};
+    for (final k in input) {
+      byTick[k.tick] = k;
+    }
+    final list = byTick.values.toList()
+      ..sort((a, b) => a.tick.compareTo(b.tick));
+    if (list.isEmpty || list.first.tick != 0) {
+      list.insert(0, const KeySignatureChange(0, 0, false));
+    }
+    return list;
+  }
+
   /// Builds a format 1 file: track 0 holds tempo/time signature, followed by
   /// one MIDI track per editor track.
   static MidiFile toMidiFile(Project p) {
@@ -209,6 +233,8 @@ class MidiConverter {
         ]),
       for (final s in p.timeSignatures)
         MidiEvent.meta(s.tick, 0x58, [s.numerator, s.denominatorPower, 24, 8]),
+      for (final k in p.keySignatures)
+        MidiEvent.meta(k.tick, 0x59, [k.sharps & 0xFF, k.minor ? 1 : 0]),
       ...p.conductorExtras,
     ];
 

@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../model/editing.dart';
 import '../state/project_provider.dart';
+import '../state/sheet_options_provider.dart';
 import 'editor_actions.dart';
 import 'interaction.dart';
+import 'shortcuts_help.dart';
 
 const _timeSignatures = <(int, int)>[
   (4, 2),
@@ -17,6 +19,18 @@ const _timeSignatures = <(int, int)>[
   (9, 3),
   (12, 3),
 ];
+
+const _majorKeys = [
+  'C♭', 'G♭', 'D♭', 'A♭', 'E♭', 'B♭', 'F', 'C', //
+  'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯',
+];
+const _minorKeys = [
+  'A♭', 'E♭', 'B♭', 'F', 'C', 'G', 'D', 'A', //
+  'E', 'B', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯',
+];
+
+String _keyName(int sharps, bool minor) =>
+    '${(minor ? _minorKeys : _majorKeys)[sharps + 7]} ${minor ? 'minor' : 'major'}';
 
 /// Right-hand drawer: file commands, song title and song settings.
 class SongDrawer extends ConsumerWidget {
@@ -37,10 +51,18 @@ class SongDrawer extends ConsumerWidget {
     final state = ref.watch(projectProvider);
     final project = state.project;
     final actions = EditorActions(context, ref);
+    final sheet = ref.watch(sheetOptionsProvider);
+    final sheetNotifier = ref.read(sheetOptionsProvider.notifier);
     final sig = project.timeSignatures.first;
     final sigValue = (sig.numerator, sig.denominatorPower);
+    final key = project.keySignatures.first;
     final extraChanges =
-        project.tempos.length - 1 + project.timeSignatures.length - 1;
+        project.tempos.length -
+        1 +
+        project.timeSignatures.length -
+        1 +
+        project.keySignatures.length -
+        1;
     final textTheme = Theme.of(context).textTheme;
 
     return SafeArea(
@@ -71,6 +93,43 @@ class SongDrawer extends ConsumerWidget {
               '${state.dirty ? ' • unsaved changes' : ''}',
             ),
             onTap: () => _run(context, () async => actions.exportFile()),
+          ),
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.music_note),
+            title: const Text('Sheet music'),
+            subtitle: const Text('View in a new tab, save as PDF'),
+            onTap: () => _run(context, () async => actions.showSheetMusic()),
+          ),
+          SwitchListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.only(left: 32, right: 16),
+            title: const Text('Title'),
+            value: sheet.title,
+            onChanged: (v) => sheetNotifier.update((o) => o.copyWith(title: v)),
+          ),
+          SwitchListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.only(left: 32, right: 16),
+            title: const Text('Chords'),
+            value: sheet.chords,
+            onChanged: (v) =>
+                sheetNotifier.update((o) => o.copyWith(chords: v)),
+          ),
+          SwitchListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.only(left: 32, right: 16),
+            title: const Text('Staff labels'),
+            value: sheet.staffLabels,
+            onChanged: (v) =>
+                sheetNotifier.update((o) => o.copyWith(staffLabels: v)),
+          ),
+          SwitchListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.only(left: 32, right: 16),
+            title: const Text('Tempo'),
+            value: sheet.tempo,
+            onChanged: (v) => sheetNotifier.update((o) => o.copyWith(tempo: v)),
           ),
           const Divider(),
           const _SectionHeader('Title'),
@@ -137,15 +196,50 @@ class SongDrawer extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                const Expanded(child: Text('Key signature')),
+                DropdownButton<(int, bool)>(
+                  value: (key.sharps, key.minor),
+                  items: [
+                    for (final minor in const [false, true])
+                      for (var s = -7; s <= 7; s++)
+                        DropdownMenuItem(
+                          value: (s, minor),
+                          child: Text(_keyName(s, minor)),
+                        ),
+                  ],
+                  onChanged: (k) {
+                    if (k == null) return;
+                    ref
+                        .read(projectProvider.notifier)
+                        .apply((p) => Edits.setKeySignature(p, k.$1, k.$2));
+                  },
+                ),
+              ],
+            ),
+          ),
           if (extraChanges > 0)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Text(
-                'This song also has $extraChanges later tempo/time-signature '
+                'This song also has $extraChanges later tempo/time/key-signature '
                 'change(s). They are kept and played but cannot be edited here.',
                 style: textTheme.bodySmall,
               ),
             ),
+          // Shown last so it stays at the bottom of the drawer.
+          const Divider(height: 24),
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.keyboard_outlined),
+            title: const Text('Keyboard shortcuts'),
+            subtitle: const Text('Mouse, touch and key reference'),
+            onTap: () => _run(context, () => showShortcutsHelp(context)),
+          ),
         ],
       ),
     );

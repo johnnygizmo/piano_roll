@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/editor_provider.dart';
+import '../state/project_provider.dart';
 import '../state/transport_provider.dart';
 
 /// Shared focus node so that clicking in the editor returns keyboard focus
@@ -24,6 +25,11 @@ void auditionNote(
   bool drum = false,
 }) {
   final audio = ref.read(audioProvider);
+  // Edits always happen on the active track, so it supplies the instrument.
+  final track = ref
+      .read(projectProvider)
+      .project
+      .trackById(ref.read(editorProvider).activeTrackId);
   audio.resume();
   audio.playNote(
     pitch: pitch,
@@ -31,6 +37,8 @@ void auditionNote(
     when: audio.currentTime,
     duration: 0.3,
     drum: drum,
+    program: track?.program ?? 0,
+    channel: track?.channel ?? 0,
   );
 }
 

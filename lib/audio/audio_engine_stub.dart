@@ -17,6 +17,8 @@ class _SilentAudioEngine implements AudioEngine {
     required double when,
     required double duration,
     bool drum = false,
+    int program = 0,
+    int channel = 0,
   }) {}
 
   @override

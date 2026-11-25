@@ -18,13 +18,16 @@ flutter test                 # unit + widget tests
 - **Draw tool (D)** – click an empty cell to add a note; drag to set its length.
 - **Select tool (V)** – click or marquee-drag to select; drag a note to move it, drag its right edge to resize. **Alt+drag** (or drag with two fingers on touch) copies the selection and moves the copies.
 - **Erase tool (E)** – click/drag over notes. Delete/Backspace removes the selection.
-- **Generate (right-click or long-press a note)** – pie menu: Chord → Major / Minor / Aug / Dim → Triad, m7, M7, 7, m9, M9, 9, m11, M11, 11, m13, M13, 13. The chord is built in root position above that note (same start, length and velocity). Scale and Arpeggio are shown but not implemented yet.
+- **Pan tool (H)** – drag the grid to scroll in both directions (works with one finger on touch screens). The scrollbars are larger on narrow screens, and pressing the scrollbar track jumps there.
+- **Generate (right-click or long-press a note)** – pie menu: Chord → Major / Minor / Aug / Dim → Triad, m7, M7, 7, m9, M9, 9, m11, M11, 11, m13, M13, 13. The chord is built in root position above that note (same start, length and velocity).
+- **Edit (same menu)** – Edit → Cut / Copy / Paste (at the playhead) / Delete the selection, or Resize → Lengthen / Shorten (by the snap size; notes that would vanish are left alone) / Set Size (1/1 … 1/16T).
 - **Transpose (same menu)** – Transpose → Up / Down / Copy Up / Copy Down → m2 … Octave moves (or copies and moves) all selected notes by that interval (the clicked note is selected first if it wasn't).
-- Wheel scrolls, Shift+wheel scrolls sideways, Ctrl+wheel zooms time, Alt+wheel zooms rows, middle-drag pans.
-- Drag the velocity bars along the bottom to change velocity.
+- Wheel scrolls, Shift+wheel scrolls sideways, Ctrl+wheel zooms time, Alt+wheel zooms rows, middle-drag pans. Drag the piano keys up/down to scroll vertically (tap a key to hear it).
+- Drag the velocity bars along the bottom to change velocity; the arrow next to "Velocity" collapses the lane.
+- **Sheet music** – the **Sheet music** item in the File section of the song drawer opens a new tab that engraves all tracks with [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/) (bundled in `web/osmd/`, BSD-3). "Save as PDF / Print" uses the browser's print dialog; "Download MusicXML" saves the score. The switches under the item (all on by default) toggle the title, chord symbols, staff labels and tempo mark. Chord symbols are guessed per beat from the notes of all pitched tracks with [Tonal](https://github.com/tonaljs/tonal) (bundled in `web/tonal/`, MIT) and shown above the first track. The key signature and each track's General MIDI instrument (grand staff for keyboards, bass clef for tuba, ...) are honoured. Notation is approximate: times are quantised to 32nd notes (no triplets) and overlapping notes are cut at the next onset.
 - Click the ruler to place the playhead; Space plays/pauses.
 
-The `?` button in the toolbar lists every shortcut. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for design decisions and [PLAN.md](PLAN.md) for the roadmap.
+The **Keyboard shortcuts** item at the bottom of the song drawer lists every shortcut. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for design decisions and [PLAN.md](PLAN.md) for the roadmap.
 
 ## Publishing to GitHub Pages
 
