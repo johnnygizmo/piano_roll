@@ -63,11 +63,16 @@ class _WebAudioEngine implements AudioEngine {
   double get currentTime => _context.currentTime;
 
   @override
-  Future<void> resume() async {
+  Future<void> unlock() async {
     final ctx = _context;
     if (ctx.state != 'running') {
       await ctx.resume().toDart;
     }
+  }
+
+  @override
+  Future<void> resume() async {
+    await unlock();
     if (_useSystemMidi) {
       unawaited(_midiSetup ??= _openMidi());
     }

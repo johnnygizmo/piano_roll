@@ -8,6 +8,9 @@ class _SilentAudioEngine implements AudioEngine {
   double get currentTime => _clock.elapsedMicroseconds / 1e6;
 
   @override
+  Future<void> unlock() async {}
+
+  @override
   Future<void> resume() async {}
 
   @override

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'state/transport_provider.dart';
 import 'ui/piano_roll_page.dart';
 import 'ui/restore_gate.dart';
 
@@ -9,7 +12,23 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   // Right-click is used for deleting notes, so suppress the browser menu.
   BrowserContextMenu.disableContextMenu().catchError((Object _) {});
-  runApp(const ProviderScope(child: PianoRollApp()));
+  runApp(
+    const ProviderScope(child: _AudioActivationGate(child: PianoRollApp())),
+  );
+}
+
+class _AudioActivationGate extends ConsumerWidget {
+  const _AudioActivationGate({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Listener(
+      onPointerDown: (_) => unawaited(ref.read(audioProvider).unlock()),
+      child: child,
+    );
+  }
 }
 
 class PianoRollApp extends StatelessWidget {

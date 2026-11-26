@@ -7,6 +7,9 @@ abstract class AudioEngine {
   /// Audio clock in seconds.
   double get currentTime;
 
+  /// Unlocks the audio output from a user gesture on the web.
+  Future<void> unlock();
+
   /// Must be called from a user gesture on the web before sound is produced.
   Future<void> resume();
 
