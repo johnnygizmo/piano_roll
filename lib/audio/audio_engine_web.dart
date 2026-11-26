@@ -65,11 +65,11 @@ class _WebAudioEngine implements AudioEngine {
   @override
   Future<void> resume() async {
     final ctx = _context;
-    if (ctx.state == 'suspended') {
+    if (ctx.state != 'running') {
       await ctx.resume().toDart;
     }
     if (_useSystemMidi) {
-      await (_midiSetup ??= _openMidi());
+      unawaited(_midiSetup ??= _openMidi());
     }
   }
 
