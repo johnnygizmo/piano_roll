@@ -33,6 +33,9 @@ abstract class AudioEngine {
 
   /// Silences everything that is playing or scheduled.
   void stopAll();
+
+  /// Releases platform resources and silences any scheduled audio.
+  void dispose();
 }
 
 AudioEngine createAudioEngine() => impl.createAudioEngineImpl();

@@ -372,9 +372,11 @@ void main() {
       await tester.drag(find.text('Version 1.2.1+1'), const Offset(0, 600));
       await tester.pumpAndSettle();
       expect(container.read(systemMidiProvider), isTrue);
+      final audio = container.read(audioProvider);
       await tester.tap(find.text('System MIDI'));
       await tester.pumpAndSettle();
       expect(container.read(systemMidiProvider), isFalse);
+      expect(container.read(audioProvider), same(audio));
 
       // Focusing and leaving a field without changing it is not an edit.
       await tester.tap(find.widgetWithText(TextField, 'Untitled'));

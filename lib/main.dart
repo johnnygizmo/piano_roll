@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,10 +22,8 @@ class _AudioActivationGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Listener(
-      onPointerDown: (_) => unawaited(ref.read(audioProvider).unlock()),
-      child: child,
-    );
+    ref.watch(audioProvider);
+    return child;
   }
 }
 

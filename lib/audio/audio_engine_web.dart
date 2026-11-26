@@ -29,6 +29,26 @@ extension type _MidiOutputMap._(JSObject _) implements JSObject {
 /// GS Wavetable Synth" on Windows) when the browser exposes one; otherwise
 /// falls back to a simple Web Audio synth with a timbre per instrument family.
 class _WebAudioEngine implements AudioEngine {
+  _WebAudioEngine() {
+    _activationListener = ((web.Event event) {
+      final ctx = _context;
+      if (ctx.state == 'running') return;
+
+      // iOS WebKit requires both resume and a source start in the native
+      // gesture handler, before Flutter dispatches its gesture callbacks.
+      final source = ctx.createBufferSource();
+      source.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      source.connect(ctx.destination);
+      source.start();
+      unawaited(unlock());
+    }).toJS;
+    for (final event in _activationEvents) {
+      web.document.addEventListener(event, _activationListener, true.toJS);
+    }
+  }
+
+  static const _activationEvents = ['pointerdown', 'touchend', 'keydown'];
+  late final JSFunction _activationListener;
   web.AudioContext? _ctx;
   web.DynamicsCompressorNode? _compressor;
   web.GainNode? _bus;
@@ -244,6 +264,16 @@ class _WebAudioEngine implements AudioEngine {
         out.send([(0xB0 | ch).toJS, 123.toJS, 0.toJS].toJS); // all notes off
       }
     }
+  }
+
+  @override
+  void dispose() {
+    for (final event in _activationEvents) {
+      web.document.removeEventListener(event, _activationListener, true.toJS);
+    }
+    stopAll();
+    final ctx = _ctx;
+    if (ctx != null) unawaited(ctx.close().toDart);
   }
 }
 

@@ -10,11 +10,11 @@ import 'project_provider.dart';
 
 final audioProvider = Provider<AudioEngine>((ref) {
   final engine = createAudioEngine();
-  engine.setUseSystemMidi(ref.watch(systemMidiProvider));
+  engine.setUseSystemMidi(ref.read(systemMidiProvider));
   ref.listen(systemMidiProvider, (_, enabled) {
     engine.setUseSystemMidi(enabled);
   });
-  ref.onDispose(engine.stopAll);
+  ref.onDispose(engine.dispose);
   return engine;
 });
 

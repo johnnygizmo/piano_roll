@@ -29,6 +29,9 @@ class _SilentAudioEngine implements AudioEngine {
 
   @override
   void stopAll() {}
+
+  @override
+  void dispose() {}
 }
 
 AudioEngine createAudioEngineImpl() => _SilentAudioEngine();
