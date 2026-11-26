@@ -4,11 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../audio/audio_engine.dart';
 import '../model/tempo_map.dart';
+import 'audio_output_provider.dart';
 import 'editor_provider.dart';
 import 'project_provider.dart';
 
 final audioProvider = Provider<AudioEngine>((ref) {
   final engine = createAudioEngine();
+  engine.setUseSystemMidi(ref.watch(systemMidiProvider));
+  ref.listen(systemMidiProvider, (_, enabled) {
+    engine.setUseSystemMidi(enabled);
+  });
   ref.onDispose(engine.stopAll);
   return engine;
 });

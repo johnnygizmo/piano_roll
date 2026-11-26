@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../model/editing.dart';
+import '../state/audio_output_provider.dart';
 import '../state/project_provider.dart';
 import '../state/sheet_options_provider.dart';
+import '../state/transport_provider.dart';
 import 'editor_actions.dart';
 import 'interaction.dart';
 import 'shortcuts_help.dart';
@@ -46,6 +48,24 @@ class SongDrawer extends ConsumerWidget {
     if (context.mounted) Scaffold.maybeOf(context)?.closeEndDrawer();
   }
 
+  Future<void> _setSystemMidi(
+    BuildContext context,
+    WidgetRef ref,
+    bool enabled,
+  ) async {
+    final wasPlaying = ref.read(transportProvider).playing;
+    if (wasPlaying) await ref.read(transportProvider.notifier).pause();
+    final stored = ref
+        .read(systemMidiProvider.notifier)
+        .setUseSystemMidi(enabled);
+    if (!stored && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the audio preference.')),
+      );
+    }
+    if (wasPlaying) await ref.read(transportProvider.notifier).play();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(projectProvider);
@@ -53,6 +73,7 @@ class SongDrawer extends ConsumerWidget {
     final actions = EditorActions(context, ref);
     final sheet = ref.watch(sheetOptionsProvider);
     final sheetNotifier = ref.read(sheetOptionsProvider.notifier);
+    final useSystemMidi = ref.watch(systemMidiProvider);
     final sig = project.timeSignatures.first;
     final sigValue = (sig.numerator, sig.denominatorPower);
     final key = project.keySignatures.first;
@@ -130,6 +151,16 @@ class SongDrawer extends ConsumerWidget {
             title: const Text('Tempo'),
             value: sheet.tempo,
             onChanged: (v) => sheetNotifier.update((o) => o.copyWith(tempo: v)),
+          ),
+          const Divider(),
+          SwitchListTile(
+            dense: true,
+            title: const Text('System MIDI'),
+            subtitle: const Text(
+              'Use a system synth when available; otherwise browser sound',
+            ),
+            value: useSystemMidi,
+            onChanged: (enabled) => _setSystemMidi(context, ref, enabled),
           ),
           const Divider(),
           const _SectionHeader('Title'),

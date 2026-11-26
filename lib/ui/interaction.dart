@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../audio/audio_engine.dart';
 import '../state/editor_provider.dart';
 import '../state/project_provider.dart';
 import '../state/transport_provider.dart';
@@ -30,15 +33,28 @@ void auditionNote(
       .read(projectProvider)
       .project
       .trackById(ref.read(editorProvider).activeTrackId);
-  audio.resume();
+  unawaited(
+    _playAudition(audio, pitch, velocity, drum, track?.program, track?.channel),
+  );
+}
+
+Future<void> _playAudition(
+  AudioEngine audio,
+  int pitch,
+  int velocity,
+  bool drum,
+  int? program,
+  int? channel,
+) async {
+  await audio.resume();
   audio.playNote(
     pitch: pitch,
     velocity: velocity,
     when: audio.currentTime,
     duration: 0.3,
     drum: drum,
-    program: track?.program ?? 0,
-    channel: track?.channel ?? 0,
+    program: program ?? 0,
+    channel: channel ?? 0,
   );
 }
 

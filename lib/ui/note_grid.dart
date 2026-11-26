@@ -30,7 +30,7 @@ class _Drag {
   }) : startScroll = Offset.zero;
 
   final _Mode mode;
-  final Offset start;
+  Offset start;
   Note? anchor;
   Map<int, Note> originals;
   final Set<int> baseSelection;
@@ -62,6 +62,12 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
   Offset _longPressStart = Offset.zero;
   int _dragPointer = -1;
   final _touchPointers = <int>{};
+  final _touchPositions = <int, Offset>{};
+  Offset? _pinchStart;
+  Offset? _pinchStartSecond;
+  bool? _pinchIsVertical;
+  double? _pinchStartDistance;
+  double? _pinchStartZoom;
   MouseCursor _cursor = SystemMouseCursors.basic;
 
   @override
@@ -135,7 +141,18 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
   void _onDown(PointerDownEvent event) {
     editorFocusNode.requestFocus();
     final isTouch = event.kind == PointerDeviceKind.touch;
-    if (isTouch) _touchPointers.add(event.pointer);
+    if (isTouch) {
+      _touchPointers.add(event.pointer);
+      _touchPositions[event.pointer] = event.localPosition;
+      if (_editor.tool == EditTool.pan && _touchPositions.length == 2) {
+        _cancelLongPress();
+        _pinchStart = _touchPositions.values.first;
+        _pinchStartSecond = _touchPositions.values.last;
+        _pinchIsVertical = null;
+        _pinchStartDistance = null;
+        _pinchStartZoom = null;
+      }
+    }
     // An extra finger (or button) during a drag only modifies it: with two
     // fingers a move drag copies. It never starts a second gesture.
     if (_drag != null && event.pointer != _dragPointer) {
@@ -242,6 +259,16 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
   }
 
   void _onMove(PointerMoveEvent event) {
+    if (_touchPositions.containsKey(event.pointer)) {
+      _touchPositions[event.pointer] = event.localPosition;
+    }
+    if (_pinchStart != null &&
+        _touchPositions.length >= 2 &&
+        _touchPositions.containsKey(event.pointer) &&
+        _editor.tool == EditTool.pan) {
+      _applyPinch();
+      return;
+    }
     final drag = _drag;
     if (drag == null || event.pointer != _dragPointer) return;
     if (_longPress != null &&
@@ -274,6 +301,53 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
         _applyMove(drag, event.localPosition);
       case _Mode.resize:
         _applyResize(drag, event.localPosition);
+    }
+  }
+
+  void _applyPinch() {
+    final start = _pinchStart;
+    final startSecond = _pinchStartSecond;
+    if (start == null || startSecond == null) return;
+    final positions = _touchPositions.values.take(2).toList();
+    if (positions.length < 2) return;
+    final first = positions[0];
+    final second = positions[1];
+    final horizontalDistance = (second.dx - first.dx).abs();
+    final verticalDistance = (second.dy - first.dy).abs();
+    final startHorizontalDistance = (startSecond.dx - start.dx).abs();
+    final startVerticalDistance = (startSecond.dy - start.dy).abs();
+
+    if (_pinchIsVertical == null) {
+      final horizontalChange = (horizontalDistance - startHorizontalDistance)
+          .abs();
+      final verticalChange = (verticalDistance - startVerticalDistance).abs();
+      if (math.max(horizontalChange, verticalChange) < 4) return;
+      _pinchIsVertical = verticalChange > horizontalChange;
+      final vertical = _pinchIsVertical!;
+      _pinchStartDistance = vertical ? verticalDistance : horizontalDistance;
+      final editor = _editor;
+      _pinchStartZoom = vertical ? editor.zoomY : editor.zoomX;
+      return;
+    }
+
+    final vertical = _pinchIsVertical!;
+    final distance = vertical ? verticalDistance : horizontalDistance;
+    var startDistance = _pinchStartDistance!;
+    if (startDistance <= 1) {
+      if (distance <= 1) return;
+      _pinchStartDistance = distance;
+      _pinchStartZoom = vertical ? _editor.zoomY : _editor.zoomX;
+      return;
+    }
+    final startZoom = _pinchStartZoom!;
+    final factor = distance / startDistance;
+    final focus = vertical
+        ? (first.dy + second.dy) / 2
+        : (first.dx + second.dx) / 2;
+    if (vertical) {
+      _view.zoomYBy(startZoom * factor / _editor.zoomY, focus);
+    } else {
+      _view.zoomXBy(startZoom * factor / _editor.zoomX, focus);
     }
   }
 
@@ -371,6 +445,21 @@ class _NoteGridState extends ConsumerState<NoteGrid> {
 
   void _onUp(PointerEvent event) {
     _touchPointers.remove(event.pointer);
+    _touchPositions.remove(event.pointer);
+    if (_pinchStart != null && _touchPositions.length < 2) {
+      _pinchStart = null;
+      _pinchStartSecond = null;
+      _pinchIsVertical = null;
+      _pinchStartDistance = null;
+      _pinchStartZoom = null;
+      final remaining = _touchPositions.values.firstOrNull;
+      final drag = _drag;
+      if (remaining != null && drag?.mode == _Mode.pan) {
+        drag!
+          ..startScroll = Offset(_editor.scrollX, _editor.scrollY)
+          ..start = remaining;
+      }
+    }
     // Lifting an extra finger must not end the drag of the primary pointer.
     if (event.pointer != _dragPointer) return;
     _cancelLongPress();

@@ -10,6 +10,9 @@ abstract class AudioEngine {
   /// Must be called from a user gesture on the web before sound is produced.
   Future<void> resume();
 
+  /// Selects system MIDI output when available, otherwise browser synthesis.
+  void setUseSystemMidi(bool enabled);
+
   /// Schedules a note at audio-clock time [when] lasting [duration] seconds.
   ///
   /// [program] is the General MIDI instrument (0-127) and [channel] the MIDI

@@ -9,6 +9,7 @@ import 'package:piano_roll/model/project.dart';
 import 'package:piano_roll/model/snap_and_grid.dart';
 import 'package:piano_roll/model/tempo_map.dart';
 import 'package:piano_roll/model/track.dart';
+import 'package:piano_roll/state/audio_output_provider.dart';
 import 'package:piano_roll/state/editor_provider.dart';
 import 'package:piano_roll/state/project_provider.dart';
 import 'package:piano_roll/state/transport_provider.dart';
@@ -357,6 +358,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Song settings'), findsOneWidget);
       expect(find.text('File'), findsOneWidget);
+      expect(container.read(systemMidiProvider), isTrue);
+      await tester.tap(find.text('System MIDI'));
+      await tester.pumpAndSettle();
+      expect(container.read(systemMidiProvider), isFalse);
 
       // Focusing and leaving a field without changing it is not an edit.
       await tester.tap(find.widgetWithText(TextField, 'Untitled'));
@@ -404,6 +409,57 @@ void main() {
       expect(find.text('Song settings'), findsNothing);
     },
   );
+
+  testWidgets('pan mode pinches zoom the matching axis', (tester) async {
+    tester.view.physicalSize = const Size(1600, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const ProviderScope(child: PianoRollApp()));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PianoRollApp)),
+    );
+    container.read(editorProvider.notifier).setTool(EditTool.pan);
+    await tester.pump();
+
+    final origin = tester.getTopLeft(find.byType(NoteGrid));
+    final horizontalFirst = await tester.startGesture(
+      origin + const Offset(300, 200),
+      pointer: 1,
+    );
+    final horizontalSecond = await tester.startGesture(
+      origin + const Offset(500, 200),
+      pointer: 2,
+    );
+    await horizontalFirst.moveTo(origin + const Offset(350, 200));
+    await horizontalFirst.moveTo(origin + const Offset(375, 200));
+    await tester.pump();
+    final afterHorizontal = container.read(editorProvider);
+    expect(afterHorizontal.zoomX, lessThan(80));
+    expect(afterHorizontal.zoomY, 16);
+    await horizontalFirst.up();
+    await horizontalSecond.up();
+    await tester.pump();
+
+    final verticalZoomX = container.read(editorProvider).zoomX;
+    final verticalFirst = await tester.startGesture(
+      origin + const Offset(400, 150),
+      pointer: 3,
+    );
+    final verticalSecond = await tester.startGesture(
+      origin + const Offset(400, 350),
+      pointer: 4,
+    );
+    await verticalFirst.moveTo(origin + const Offset(400, 200));
+    await verticalFirst.moveTo(origin + const Offset(400, 225));
+    await tester.pump();
+    final afterVertical = container.read(editorProvider);
+    expect(afterVertical.zoomY, lessThan(16));
+    expect(afterVertical.zoomX, closeTo(verticalZoomX, 0.01));
+    await verticalFirst.up();
+    await verticalSecond.up();
+  });
 
   testWidgets('dragging a track handle reorders the tracks', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);

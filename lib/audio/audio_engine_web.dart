@@ -36,6 +36,7 @@ class _WebAudioEngine implements AudioEngine {
 
   Future<void>? _midiSetup;
   web.MIDIOutput? _midiOut;
+  bool _useSystemMidi = true;
   final _pending = <_PendingMidi>[];
   Timer? _midiTimer;
 
@@ -67,7 +68,16 @@ class _WebAudioEngine implements AudioEngine {
     if (ctx.state == 'suspended') {
       await ctx.resume().toDart;
     }
-    await (_midiSetup ??= _openMidi());
+    if (_useSystemMidi) {
+      await (_midiSetup ??= _openMidi());
+    }
+  }
+
+  @override
+  void setUseSystemMidi(bool enabled) {
+    if (_useSystemMidi == enabled) return;
+    stopAll();
+    _useSystemMidi = enabled;
   }
 
   Future<void> _openMidi() async {
@@ -101,7 +111,7 @@ class _WebAudioEngine implements AudioEngine {
     int program = 0,
     int channel = 0,
   }) {
-    if (_midiOut != null) {
+    if (_useSystemMidi && _midiOut != null) {
       _playMidi(pitch, velocity, when, duration, drum, program, channel);
     } else {
       _playOscillator(pitch, velocity, when, duration, drum, program);

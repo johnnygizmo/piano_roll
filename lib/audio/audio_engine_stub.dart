@@ -11,6 +11,9 @@ class _SilentAudioEngine implements AudioEngine {
   Future<void> resume() async {}
 
   @override
+  void setUseSystemMidi(bool enabled) {}
+
+  @override
   void playNote({
     required int pitch,
     required int velocity,

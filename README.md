@@ -15,6 +15,7 @@ flutter test                 # unit + widget tests
 
 - **File & song** – the sliders button at the right end of the toolbar opens a right-hand drawer with **File** (New, Open…, Save = download `<title>.mid`, format 1; Ctrl+O / Ctrl+S also work), the **Title**, and **Song settings** (tempo, time signature). A dot on the button means unsaved changes.
 - **Tracks** – the track list is a side drawer: toolbar button or **T**. Pick a track to edit it; M/S mute/solo, + adds, ⋮ opens properties/delete.
+- **Audio output** – open the song drawer and toggle **System MIDI** to use an available system MIDI synth or the browser-generated sound.
 - **Draw tool (D)** – click an empty cell to add a note; drag to set its length.
 - **Select tool (V)** – click or marquee-drag to select; drag a note to move it, drag its right edge to resize. **Alt+drag** (or drag with two fingers on touch) copies the selection and moves the copies.
 - **Erase tool (E)** – click/drag over notes. Delete/Backspace removes the selection.
