@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:piano_roll/main.dart';
 import 'package:piano_roll/model/editing.dart';
 import 'package:piano_roll/model/note.dart';
@@ -342,6 +343,13 @@ void main() {
       tester.view.physicalSize = const Size(1600, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
+      PackageInfo.setMockInitialValues(
+        appName: 'Piano Roll',
+        packageName: 'piano_roll',
+        version: '1.2.1',
+        buildNumber: '1',
+        buildSignature: '',
+      );
 
       await tester.pumpWidget(const ProviderScope(child: PianoRollApp()));
       await tester.pumpAndSettle();
@@ -358,6 +366,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Song settings'), findsOneWidget);
       expect(find.text('File'), findsOneWidget);
+      await tester.drag(find.text('File'), const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(find.text('Version 1.2.1+1'), findsOneWidget);
+      await tester.drag(find.text('Version 1.2.1+1'), const Offset(0, 600));
+      await tester.pumpAndSettle();
       expect(container.read(systemMidiProvider), isTrue);
       await tester.tap(find.text('System MIDI'));
       await tester.pumpAndSettle();

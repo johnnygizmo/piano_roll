@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../model/editing.dart';
 import '../state/audio_output_provider.dart';
@@ -33,6 +34,13 @@ const _minorKeys = [
 
 String _keyName(int sharps, bool minor) =>
     '${(minor ? _minorKeys : _majorKeys)[sharps + 7]} ${minor ? 'minor' : 'major'}';
+
+final _appVersionProvider = FutureProvider<String>((_) async {
+  final info = await PackageInfo.fromPlatform();
+  return info.buildNumber.isEmpty
+      ? info.version
+      : '${info.version}+${info.buildNumber}';
+});
 
 /// Right-hand drawer: file commands, song title and song settings.
 class SongDrawer extends ConsumerWidget {
@@ -74,6 +82,7 @@ class SongDrawer extends ConsumerWidget {
     final sheet = ref.watch(sheetOptionsProvider);
     final sheetNotifier = ref.read(sheetOptionsProvider.notifier);
     final useSystemMidi = ref.watch(systemMidiProvider);
+    final appVersion = ref.watch(_appVersionProvider);
     final sig = project.timeSignatures.first;
     final sigValue = (sig.numerator, sig.denominatorPower);
     final key = project.keySignatures.first;
@@ -270,6 +279,20 @@ class SongDrawer extends ConsumerWidget {
             title: const Text('Keyboard shortcuts'),
             subtitle: const Text('Mouse, touch and key reference'),
             onTap: () => _run(context, () => showShortcutsHelp(context)),
+          ),
+          const Divider(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: appVersion.when(
+                data: (version) =>
+                    Text('Version $version', style: textTheme.bodySmall),
+                error: (error, stackTrace) =>
+                    Text('Version unavailable', style: textTheme.bodySmall),
+                loading: () => const SizedBox(height: 16),
+              ),
+            ),
           ),
         ],
       ),
