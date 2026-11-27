@@ -7,6 +7,7 @@ import '../model/editing.dart';
 import '../state/audio_output_provider.dart';
 import '../state/project_provider.dart';
 import '../state/sheet_options_provider.dart';
+import '../state/speed_dial_provider.dart';
 import '../state/transport_provider.dart';
 import 'editor_actions.dart';
 import 'interaction.dart';
@@ -82,6 +83,7 @@ class SongDrawer extends ConsumerWidget {
     final sheet = ref.watch(sheetOptionsProvider);
     final sheetNotifier = ref.read(sheetOptionsProvider.notifier);
     final useSystemMidi = ref.watch(systemMidiProvider);
+    final showSpeedDial = ref.watch(speedDialProvider);
     final appVersion = ref.watch(_appVersionProvider);
     final sig = project.timeSignatures.first;
     final sigValue = (sig.numerator, sig.denominatorPower);
@@ -170,6 +172,26 @@ class SongDrawer extends ConsumerWidget {
             ),
             value: useSystemMidi,
             onChanged: (enabled) => _setSystemMidi(context, ref, enabled),
+          ),
+          SwitchListTile(
+            dense: true,
+            title: const Text('Floating mode selector'),
+            subtitle: const Text('Show the editing tool speed dial'),
+            value: showSpeedDial,
+            onChanged: (enabled) {
+              final stored = ref
+                  .read(speedDialProvider.notifier)
+                  .setEnabled(enabled);
+              if (!stored) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Could not save the mode selector preference.',
+                    ),
+                  ),
+                );
+              }
+            },
           ),
           const Divider(),
           const _SectionHeader('Title'),

@@ -8,16 +8,21 @@ import 'package:piano_roll/main.dart';
 import 'package:piano_roll/model/editing.dart';
 import 'package:piano_roll/model/note.dart';
 import 'package:piano_roll/state/autosave.dart';
+import 'package:piano_roll/state/editor_provider.dart';
 import 'package:piano_roll/state/project_provider.dart';
+import 'package:piano_roll/state/speed_dial_provider.dart';
+import 'package:piano_roll/ui/tool_speed_dial.dart';
 
 class _FakeStore implements LocalStore {
   final values = <String, String>{};
+  bool failWrites = false;
 
   @override
   String? read(String key) => values[key];
 
   @override
   bool write(String key, String value) {
+    if (failWrites) return false;
     values[key] = value;
     return true;
   }
@@ -30,6 +35,109 @@ class _FakeStore implements LocalStore {
 }
 
 void main() {
+  testWidgets(
+    'floating mode selector switches tools and persists its setting',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final store = _FakeStore();
+
+      Future<ProviderContainer> start() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          ProviderScope(
+            key: UniqueKey(),
+            overrides: [localStoreProvider.overrideWithValue(store)],
+            child: const PianoRollApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        return ProviderScope.containerOf(
+          tester.element(find.byType(PianoRollApp)),
+        );
+      }
+
+      var container = await start();
+      expect(container.read(speedDialProvider), isTrue);
+      expect(find.byType(ToolSpeedDial), findsOneWidget);
+      for (final (label, tool) in [
+        ('Select (V)', EditTool.select),
+        ('Draw (D)', EditTool.draw),
+        ('Erase (E)', EditTool.erase),
+        ('Pan (H)', EditTool.pan),
+      ]) {
+        await tester.tap(find.byTooltip('Choose editing mode'));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ToolSpeedDial),
+            matching: find.byTooltip(label),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(container.read(editorProvider).tool, tool);
+        expect(find.byTooltip('Close mode selector'), findsNothing);
+      }
+      container.read(editorProvider.notifier).setTool(EditTool.select);
+      await tester.pump();
+      expect(
+        find.descendant(
+          of: find.byTooltip('Choose editing mode'),
+          matching: find.byIcon(Icons.near_me),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Floating mode selector'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ToolSpeedDial), findsNothing);
+      expect(store.values['piano_roll.show_tool_speed_dial.v1'], 'false');
+
+      container = await start();
+      expect(container.read(speedDialProvider), isFalse);
+      expect(find.byType(ToolSpeedDial), findsNothing);
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Floating mode selector'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ToolSpeedDial), findsOneWidget);
+      expect(store.values['piano_roll.show_tool_speed_dial.v1'], 'true');
+
+      container = await start();
+      expect(container.read(speedDialProvider), isTrue);
+      expect(find.byType(ToolSpeedDial), findsOneWidget);
+    },
+  );
+
+  testWidgets('floating mode selector reports a failed save', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final store = _FakeStore()..failWrites = true;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [localStoreProvider.overrideWithValue(store)],
+        child: const PianoRollApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.tune));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Floating mode selector'));
+    await tester.pump(const Duration(milliseconds: 300));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(PianoRollApp)),
+    );
+    expect(container.read(speedDialProvider), isFalse);
+    expect(
+      find.text('Could not save the mode selector preference.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('edits are autosaved, restored after a reload, then cleared '
       'when saved', (tester) async {
     tester.view.physicalSize = const Size(1600, 900);

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../io/file_io.dart';
 import '../state/editor_provider.dart';
 import '../state/project_provider.dart';
+import '../state/speed_dial_provider.dart';
 import '../state/transport_provider.dart';
 import 'constants.dart';
 import 'editor_actions.dart';
@@ -15,6 +16,7 @@ import 'ruler_view.dart';
 import 'scrollbars.dart';
 import 'song_drawer.dart';
 import 'toolbar.dart';
+import 'tool_speed_dial.dart';
 import 'track_panel.dart';
 import 'velocity_lane.dart';
 
@@ -115,6 +117,9 @@ class PianoRollPage extends ConsumerWidget {
         child: SafeArea(child: TrackPanel()),
       ),
       endDrawer: const Drawer(width: songDrawerWidth, child: SongDrawer()),
+      floatingActionButton: ref.watch(speedDialProvider)
+          ? const ToolSpeedDial()
+          : null,
       onDrawerChanged: (open) {
         if (!open) editorFocusNode.requestFocus();
       },

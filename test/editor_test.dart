@@ -407,6 +407,8 @@ void main() {
       expect(project().tempos.first.bpm, closeTo(90, 0.01));
       expect(find.widgetWithText(TextField, '90'), findsOneWidget);
 
+      await tester.drag(find.byType(ListView), const Offset(0, -250));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('4/4'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('3/4').last);
@@ -414,6 +416,8 @@ void main() {
       expect(project().timeSignatures.first.numerator, 3);
 
       // New asks before discarding, then resets the title; the drawer closes.
+      await tester.drag(find.byType(ListView), const Offset(0, 500));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('New'));
       await tester.pumpAndSettle();
       expect(find.text('Discard unsaved changes?'), findsOneWidget);
