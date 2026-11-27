@@ -5,6 +5,7 @@ import '../model/snap_and_grid.dart';
 import '../model/tempo_map.dart';
 import '../state/editor_provider.dart';
 import '../state/project_provider.dart';
+import '../state/speed_dial_provider.dart';
 import '../state/transport_provider.dart';
 import 'constants.dart';
 import 'editor_actions.dart';
@@ -92,37 +93,39 @@ class Toolbar extends ConsumerWidget {
                       state.canRedo ? actions.redo : null,
                     ),
                     const _Sep(),
-                    SegmentedButton<EditTool>(
-                      showSelectedIcon: false,
-                      style: const ButtonStyle(
-                        visualDensity: VisualDensity.compact,
+                    if (!ref.watch(speedDialProvider)) ...[
+                      SegmentedButton<EditTool>(
+                        showSelectedIcon: false,
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        segments: const [
+                          ButtonSegment(
+                            value: EditTool.select,
+                            icon: Icon(Icons.near_me, size: 18),
+                            tooltip: 'Select (V)',
+                          ),
+                          ButtonSegment(
+                            value: EditTool.draw,
+                            icon: Icon(Icons.edit, size: 18),
+                            tooltip: 'Draw (D)',
+                          ),
+                          ButtonSegment(
+                            value: EditTool.erase,
+                            icon: Icon(Icons.cleaning_services, size: 18),
+                            tooltip: 'Erase (E)',
+                          ),
+                          ButtonSegment(
+                            value: EditTool.pan,
+                            icon: Icon(Icons.pan_tool, size: 18),
+                            tooltip: 'Pan (H) - drag to scroll',
+                          ),
+                        ],
+                        selected: {editor.tool},
+                        onSelectionChanged: (s) => view.setTool(s.first),
                       ),
-                      segments: const [
-                        ButtonSegment(
-                          value: EditTool.select,
-                          icon: Icon(Icons.near_me, size: 18),
-                          tooltip: 'Select (V)',
-                        ),
-                        ButtonSegment(
-                          value: EditTool.draw,
-                          icon: Icon(Icons.edit, size: 18),
-                          tooltip: 'Draw (D)',
-                        ),
-                        ButtonSegment(
-                          value: EditTool.erase,
-                          icon: Icon(Icons.cleaning_services, size: 18),
-                          tooltip: 'Erase (E)',
-                        ),
-                        ButtonSegment(
-                          value: EditTool.pan,
-                          icon: Icon(Icons.pan_tool, size: 18),
-                          tooltip: 'Pan (H) - drag to scroll',
-                        ),
-                      ],
-                      selected: {editor.tool},
-                      onSelectionChanged: (s) => view.setTool(s.first),
-                    ),
-                    const SizedBox(width: 12),
+                      const SizedBox(width: 12),
+                    ],
                     const Text('Snap '),
                     DropdownButton<Snap>(
                       value: editor.snap,

@@ -61,6 +61,7 @@ void main() {
       var container = await start();
       expect(container.read(speedDialProvider), isTrue);
       expect(find.byType(ToolSpeedDial), findsOneWidget);
+      expect(find.byType(SegmentedButton<EditTool>), findsNothing);
       for (final (label, tool) in [
         ('Select (V)', EditTool.select),
         ('Draw (D)', EditTool.draw),
@@ -95,20 +96,53 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ToolSpeedDial), findsNothing);
       expect(store.values['piano_roll.show_tool_speed_dial.v1'], 'false');
+      await tester.tapAt(const Offset(20, 300));
+      await tester.pumpAndSettle();
+      expect(find.byType(SegmentedButton<EditTool>), findsOneWidget);
+      expect(
+        tester
+            .widget<SegmentedButton<EditTool>>(
+              find.byType(SegmentedButton<EditTool>),
+            )
+            .selected,
+        {EditTool.select},
+      );
+      await tester.tap(find.byTooltip('Pan (H) - drag to scroll'));
+      await tester.pumpAndSettle();
+      expect(container.read(editorProvider).tool, EditTool.pan);
+      await tester.tap(find.byIcon(Icons.tune));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Floating mode selector'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SegmentedButton<EditTool>), findsNothing);
+      expect(container.read(editorProvider).tool, EditTool.pan);
+      expect(
+        find.descendant(
+          of: find.byTooltip('Choose editing mode'),
+          matching: find.byIcon(Icons.pan_tool),
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Floating mode selector'));
+      await tester.pumpAndSettle();
+      expect(find.byType(SegmentedButton<EditTool>), findsOneWidget);
 
       container = await start();
       expect(container.read(speedDialProvider), isFalse);
       expect(find.byType(ToolSpeedDial), findsNothing);
+      expect(find.byType(SegmentedButton<EditTool>), findsOneWidget);
       await tester.tap(find.byIcon(Icons.tune));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Floating mode selector'));
       await tester.pumpAndSettle();
       expect(find.byType(ToolSpeedDial), findsOneWidget);
+      expect(find.byType(SegmentedButton<EditTool>), findsNothing);
       expect(store.values['piano_roll.show_tool_speed_dial.v1'], 'true');
 
       container = await start();
       expect(container.read(speedDialProvider), isTrue);
       expect(find.byType(ToolSpeedDial), findsOneWidget);
+      expect(find.byType(SegmentedButton<EditTool>), findsNothing);
     },
   );
 
