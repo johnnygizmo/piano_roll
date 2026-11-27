@@ -129,6 +129,86 @@ void main() {
   }
 
   testWidgets(
+    'pie velocity fader averages the selection and edits it as one gesture',
+    (tester) async {
+      final (container, notePos) = await setup(tester);
+      final trackId = container.read(projectProvider).project.tracks.first.id;
+      final first = container
+          .read(projectProvider)
+          .project
+          .tracks
+          .first
+          .notes
+          .single;
+      final second = Note.create(
+        pitch: 64,
+        start: 960,
+        duration: 480,
+        velocity: 31,
+      );
+      final other = Note.create(
+        pitch: 67,
+        start: 1440,
+        duration: 480,
+        velocity: 80,
+      );
+      container
+          .read(projectProvider.notifier)
+          .apply((p) => Edits.addNotes(p, trackId, [second, other]));
+      container.read(editorProvider.notifier).setSelection({
+        first.id,
+        second.id,
+      });
+      final pointer = await tester.startGesture(
+        notePos(),
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await pointer.up();
+      await tester.pumpAndSettle();
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 61);
+
+      final slider = tester.getRect(find.byType(Slider));
+      final gesture = await tester.startGesture(slider.center);
+      await gesture.moveTo(Offset(slider.center.dx, slider.top + 10));
+      await tester.pump();
+      await gesture.moveTo(Offset(slider.center.dx, slider.bottom - 10));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      var notes = container.read(projectProvider).project.tracks.first.notes;
+      expect(notes.firstWhere((n) => n.id == first.id).velocity, 1);
+      expect(notes.firstWhere((n) => n.id == second.id).velocity, 1);
+      expect(notes.firstWhere((n) => n.id == other.id).velocity, 80);
+      expect(find.byType(Slider), findsOneWidget);
+
+      container.read(projectProvider.notifier).undo();
+      await tester.pump();
+      notes = container.read(projectProvider).project.tracks.first.notes;
+      expect(notes.firstWhere((n) => n.id == first.id).velocity, 90);
+      expect(notes.firstWhere((n) => n.id == second.id).velocity, 31);
+      expect(tester.widget<Slider>(find.byType(Slider)).value, 61);
+
+      await tester.tapAt(Offset(slider.center.dx, slider.top + 10));
+      await tester.pumpAndSettle();
+      notes = container.read(projectProvider).project.tracks.first.notes;
+      expect(notes.firstWhere((n) => n.id == first.id).velocity, 127);
+      expect(notes.firstWhere((n) => n.id == second.id).velocity, 127);
+      expect(notes.firstWhere((n) => n.id == other.id).velocity, 80);
+
+      await pickChord(tester, notePos(), 0, 0);
+      notes = container.read(projectProvider).project.tracks.first.notes;
+      expect(
+        notes
+            .where((n) => n.start == first.start)
+            .every((n) => n.velocity == 127),
+        isTrue,
+      );
+    },
+  );
+
+  testWidgets(
     'right-click a note, choose Minor then 7: builds a minor 7th chord',
     (tester) async {
       final (container, notePos) = await setup(tester);
@@ -164,6 +244,52 @@ void main() {
       );
     },
   );
+
+  testWidgets('fader stays reachable without covering a large ring on mobile', (
+    tester,
+  ) async {
+    final (container, notePos) = await setup(tester);
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    final at = notePos();
+    final pointer = await tester.startGesture(
+      at,
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await pointer.up();
+    await tester.pumpAndSettle();
+    final center = PieLayout.clampCenter(at, const Size(390, 844));
+    await tester.tapAt(PieLayout.sliceCenter(center, 3, 0));
+    await tester.pumpAndSettle();
+    await tester.tapAt(PieLayout.sliceCenter(center, 4, 0));
+    await tester.pumpAndSettle();
+    final slider = tester.getRect(find.byType(Slider));
+    final ring = Rect.fromCircle(center: center, radius: PieLayout.largeOuter);
+    expect(slider.overlaps(ring), isFalse);
+    await tester.tapAt(slider.center);
+    await tester.pumpAndSettle();
+    final velocity = container
+        .read(projectProvider)
+        .project
+        .tracks
+        .first
+        .notes
+        .single
+        .velocity;
+    await tester.tapAt(PieLayout.sliceCenter(center, 13, 0));
+    await tester.pumpAndSettle();
+    expect(
+      container
+          .read(projectProvider)
+          .project
+          .tracks
+          .first
+          .notes
+          .every((note) => note.velocity == velocity),
+      isTrue,
+    );
+  });
 
   testWidgets('Edit menu: Lengthen, Shorten (never erases) and Set Size', (
     tester,

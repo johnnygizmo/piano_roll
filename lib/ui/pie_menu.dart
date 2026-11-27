@@ -80,6 +80,7 @@ Future<void> showPieMenu(
   required Offset center,
   required List<PieItem> items,
   String title = '',
+  Widget? accessory,
 }) {
   return showGeneralDialog<void>(
     context: context,
@@ -87,8 +88,12 @@ Future<void> showPieMenu(
     barrierLabel: 'Close menu',
     barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 120),
-    pageBuilder: (context, _, _) =>
-        _PieMenuLayer(center: center, items: items, title: title),
+    pageBuilder: (context, _, _) => _PieMenuLayer(
+      center: center,
+      items: items,
+      title: title,
+      accessory: accessory,
+    ),
     transitionBuilder: (context, animation, _, child) =>
         FadeTransition(opacity: animation, child: child),
   );
@@ -99,11 +104,13 @@ class _PieMenuLayer extends StatefulWidget {
     required this.center,
     required this.items,
     required this.title,
+    required this.accessory,
   });
 
   final Offset center;
   final List<PieItem> items;
   final String title;
+  final Widget? accessory;
 
   @override
   State<_PieMenuLayer> createState() => _PieMenuLayerState();
@@ -157,6 +164,41 @@ class _PieMenuLayerState extends State<_PieMenuLayer> {
     final centerLabel = _path.isEmpty
         ? widget.title
         : _path.map((p) => p.label).join(' ');
+    const accessoryWidth = 72.0;
+    const accessoryHeight = 220.0;
+    const gap = 8.0;
+    final radius = PieLayout.outerRadiusFor(_items.length);
+    final right = center.dx + radius + gap;
+    final left = center.dx - radius - gap - accessoryWidth;
+    final spaceAbove = center.dy - radius - gap;
+    final spaceBelow = size.height - center.dy - radius - gap;
+    final fitsBeside = right + accessoryWidth <= size.width || left >= 0;
+    final horizontal = fitsBeside || math.max(spaceAbove, spaceBelow) < 120;
+    final accessoryLeft = horizontal
+        ? (right + accessoryWidth <= size.width
+              ? right
+              : left >= 0
+              ? left
+              : math.max(0.0, size.width - accessoryWidth))
+        : (center.dx - accessoryWidth / 2).clamp(
+            0.0,
+            math.max(0.0, size.width - accessoryWidth),
+          );
+    final availableHeight = horizontal
+        ? size.height
+        : math.max(spaceAbove, spaceBelow);
+    final accessoryActualHeight = math.min(
+      accessoryHeight,
+      math.max(0.0, availableHeight),
+    );
+    final accessoryTop = horizontal
+        ? (center.dy - accessoryActualHeight / 2).clamp(
+            0.0,
+            math.max(0.0, size.height - accessoryActualHeight),
+          )
+        : spaceBelow >= spaceAbove
+        ? center.dy + radius + gap
+        : center.dy - radius - gap - accessoryActualHeight;
 
     return Focus(
       autofocus: true,
@@ -204,6 +246,14 @@ class _PieMenuLayerState extends State<_PieMenuLayer> {
               ),
             ),
           ),
+          if (widget.accessory != null)
+            Positioned(
+              left: accessoryLeft.toDouble(),
+              top: accessoryTop.toDouble(),
+              width: math.min(accessoryWidth, size.width),
+              height: accessoryActualHeight,
+              child: widget.accessory!,
+            ),
         ],
       ),
     );

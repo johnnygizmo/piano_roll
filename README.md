@@ -22,6 +22,7 @@ flutter test                 # unit + widget tests
 - **Erase tool (E)** – click/drag over notes. Delete/Backspace removes the selection.
 - **Pan tool (H)** – drag the grid to scroll in both directions (works with one finger on touch screens). The scrollbars are larger on narrow screens, and pressing the scrollbar track jumps there.
 - **Generate (right-click or long-press a note)** – pie menu: Chord → Major / Minor / Aug / Dim → Triad, m7, M7, 7, m9, M9, 9, m11, M11, 11, m13, M13, 13. The chord is built in root position above that note (same start, length and velocity).
+- **Pie-menu velocity fader** – shows the average velocity of the selected notes; drag it to set them all to the same value (1–127). Each adjustment is one undo step.
 - **Edit (same menu)** – Edit → Cut / Copy / Paste (at the playhead) / Delete the selection, or Resize → Lengthen / Shorten (by the snap size; notes that would vanish are left alone) / Set Size (1/1 … 1/16T).
 - **Transpose (same menu)** – Transpose → Up / Down / Copy Up / Copy Down → m2 … Octave moves (or copies and moves) all selected notes by that interval (the clicked note is selected first if it wasn't).
 - Wheel scrolls, Shift+wheel scrolls sideways, Ctrl+wheel zooms time, Alt+wheel zooms rows, middle-drag pans. Drag the piano keys up/down to scroll vertically (tap a key to hear it).

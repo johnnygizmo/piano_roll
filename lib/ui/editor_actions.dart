@@ -270,13 +270,16 @@ class EditorActions {
 
   /// Stacks a root-position chord on [root] (same start, duration, velocity).
   void generateChord(
-    Note root,
+    Note rootNote,
     ChordQuality quality,
     ChordExtension extension,
   ) {
     final id = _trackId;
     final track = _state.project.trackById(id);
     if (id == null || track == null) return;
+    final roots = track.notes.where((n) => n.id == rootNote.id);
+    if (roots.isEmpty) return;
+    final root = roots.first;
     final taken = {
       for (final n in track.notes)
         if (n.start == root.start) n.pitch,
